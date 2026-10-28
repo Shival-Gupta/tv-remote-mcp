@@ -78,6 +78,22 @@ class TestMCPServer(unittest.TestCase):
         res = mcp_server.execute_tv_action("192.0.2.1", "roku", "volume_up")
         self.assertIn("success", res)
 
+    def test_06_discover_functionality(self):
+        devices = mcp_server.discover()
+        self.assertIsInstance(devices, list)
+        # Should include paired devices from tokens.json if present
+        paired_ips = [d["ip"] for d in devices]
+        self.assertIn("192.168.1.11", paired_ips)
+
+    def test_07_get_health_and_brands(self):
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/health") as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data.get("status"), "ok")
+
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/brands") as resp:
+            brands = json.loads(resp.read().decode("utf-8"))
+            self.assertIn("lg", brands)
+
 
 if __name__ == "__main__":
     unittest.main()

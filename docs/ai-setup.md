@@ -58,3 +58,17 @@ Add this to your `claude_desktop_config.json`:
 - *"Launch YouTube on the living room TV."*
 - *"Switch TV input to HDMI 2 for the gaming console."*
 - *"Turn off the TV when this task finishes."*
+
+---
+
+## 4. Agent Skill (`smart-tv-control`)
+
+A full AI Agent Skill package is included in `skills/smart-tv-control/` (and `.agents/skills/smart-tv-control/`):
+
+- **Main Instructions**: [`skills/smart-tv-control/SKILL.md`](../skills/smart-tv-control/SKILL.md)
+- **CLI Helper**: `python skills/smart-tv-control/scripts/tv_cli.py <command>`
+- **Brand Protocols**: [`skills/smart-tv-control/references/brand-protocols.md`](../skills/smart-tv-control/references/brand-protocols.md)
+- **App IDs & Inputs**: [`skills/smart-tv-control/references/app-ids.md`](../skills/smart-tv-control/references/app-ids.md)
+
+AI agents can execute actions via native MCP tool calls, CLI scripts, or the HTTP RPC bridge on port 8000.
+

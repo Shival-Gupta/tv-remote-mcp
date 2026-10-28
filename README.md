@@ -60,16 +60,22 @@ tv-remote-mcp/
 │   └── index.html
 ├── server/
 │   ├── relay.py            # Local relay (browser → TV bridge)
-│   └── mcp-server.py       # MCP server for AI assistants (Phase 2)
-├── docs/                   # Setup guides, brand support, troubleshooting
+│   └── mcp-server.py       # FastMCP server & HTTP RPC bridge
+├── skills/
+│   └── smart-tv-control/   # AI Agent Skill (instructions, CLI, references)
+├── docs/                   # Setup guides, AI integration, brand support
 └── assets/                 # Shared CSS, JS, icons
 ```
 
-## Phase 2: AI Control (Coming Soon)
+## AI Assistant Integration (MCP Server & Agent Skill)
 
-An MCP server that lets AI assistants (Claude, Gemini, ChatGPT) control your TV via natural language:
+TV Remote MCP provides a dedicated FastMCP server and Agent Skill allowing AI assistants (Claude, Gemini, Antigravity, ChatGPT, Cursor) to control smart TVs using natural language:
 
-> *"Turn down the volume and open Netflix"*
+> *"Turn down the volume by 5 steps and open YouTube on the living room TV"*
+
+- **MCP Server**: `server/mcp-server.py` (FastMCP tools + HTTP `/rpc` bridge)
+- **Agent Skill**: `skills/smart-tv-control/SKILL.md` (CLI runner, brand protocols, app IDs)
+- **Documentation**: [AI Assistant Setup Guide](docs/ai-setup.md)
 
 ## Contributing
 

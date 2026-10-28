@@ -282,12 +282,87 @@ def list_brands() -> List[str]:
     return ["lg", "samsung", "android", "roku", "fire_tv", "vizio", "sony", "philips", "panasonic", "tcl"]
 
 
+def discover(network: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Scan local network for smart TVs (LG, Samsung, Roku, Android TV, Sony, etc.)."""
+    # 1. If local relay is running on port 7070, delegate to its rich scanner
+    try:
+        req = urllib.request.Request("http://localhost:7070/api/discover", method="GET")
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if isinstance(data, list):
+                return data
+    except Exception:
+        pass
+
+    # 2. Collect known paired devices from tokens.json
+    results: List[Dict[str, Any]] = []
+    seen: set = set()
+    if TOKENS_FILE.exists():
+        try:
+            with open(TOKENS_FILE, "r", encoding="utf-8") as f:
+                toks = json.load(f)
+                for ip, info in toks.items():
+                    b = "lg" if "client_key" in info else "generic"
+                    results.append({
+                        "ip": ip,
+                        "brand": b,
+                        "name": f"Paired {b.upper()} TV ({ip})",
+                        "mac": info.get("mac")
+                    })
+                    seen.add(ip)
+        except Exception:
+            pass
+
+    # 3. Quick TCP probe of current subnet
+    target_prefix = network
+    if not target_prefix:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(("8.8.8.8", 80))
+                lip = s.getsockname()[0]
+                parts = lip.split(".")
+                target_prefix = f"{parts[0]}.{parts[1]}.{parts[2]}."
+        except Exception:
+            target_prefix = "192.168.1."
+
+    ports = [
+        (3001, "lg", "LG WebOS TV (SSL)"),
+        (3000, "lg", "LG WebOS TV"),
+        (8001, "samsung", "Samsung Tizen TV"),
+        (8060, "roku", "Roku TV"),
+        (5555, "android", "Android TV / Fire TV"),
+        (7345, "vizio", "Vizio SmartCast TV"),
+        (80, "sony", "Sony Bravia TV")
+    ]
+
+    candidates = [f"{target_prefix}{i}" for i in range(1, 31)] + [f"{target_prefix}{i}" for i in range(100, 131)]
+
+    def probe(ip_str: str) -> Optional[Dict[str, Any]]:
+        for port, brand, name in ports:
+            if is_port_open(ip_str, port, timeout=0.25):
+                return {"ip": ip_str, "port": port, "brand": brand, "name": name}
+        return None
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=30) as executor:
+            for item in executor.map(probe, candidates):
+                if item and item["ip"] not in seen:
+                    results.append(item)
+                    seen.add(item["ip"])
+    except Exception:
+        pass
+
+    return results
+
+
 # FastMCP Tool Registration (if installed)
 MCP_AVAILABLE = False
 try:
     from mcp.server.fastmcp import FastMCP
     mcp = FastMCP("universal-smart-tv")
     mcp.tool()(universal_action)
+    mcp.tool()(discover)
     mcp.tool()(list_brands)
     MCP_AVAILABLE = True
 except ImportError:
@@ -302,21 +377,46 @@ class RestRpcHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        if self.path in ("/api/discover", "/discover"):
+            self.wfile.write(json.dumps(discover()).encode("utf-8"))
+        elif self.path in ("/api/brands", "/brands"):
+            self.wfile.write(json.dumps(list_brands()).encode("utf-8"))
+        elif self.path in ("/api/health", "/health"):
+            self.wfile.write(json.dumps({"status": "ok", "service": "tv-remote-mcp", "fastmcp": MCP_AVAILABLE}).encode("utf-8"))
+        else:
+            self.wfile.write(json.dumps({"status": "running", "tools": ["universal_action", "discover", "list_brands"]}).encode("utf-8"))
+
     def do_POST(self):
-        if self.path == "/rpc":
+        if self.path in ("/rpc", "/api/rpc", "/api/command"):
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length).decode("utf-8")
             data = json.loads(body) if body else {}
-            host = data.get("host") or data.get("ip")
-            brand = data.get("brand", "generic")
             action = data.get("action", "")
-            arg = data.get("arg")
-            result = execute_tv_action(host, brand, action, arg)
+            if action == "discover":
+                result = discover(data.get("network") or data.get("arg"))
+            elif action == "list_brands":
+                result = list_brands()
+            else:
+                host = data.get("host") or data.get("ip")
+                brand = data.get("brand", "generic")
+                arg = data.get("arg")
+                result = execute_tv_action(host, brand, action, arg)
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(result).encode("utf-8"))
+        elif self.path in ("/api/discover", "/discover"):
+            self.send_response(200)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(discover()).encode("utf-8"))
         else:
             self.send_error(404)
 
