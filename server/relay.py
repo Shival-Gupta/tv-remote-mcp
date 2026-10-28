@@ -301,19 +301,39 @@ class LGWebOSHandler:
             elif action == "rewind": b["media"].rewind()
             elif action == "fast_forward": b["media"].fast_forward()
             elif action == "list_apps":
-                return True, [{"id": a.get("id"), "name": a.get("title", a.get("id"))} for a in b["app"].list_apps()], None
+                def _app_dict(a: Any) -> Dict[str, Any]:
+                    d = getattr(a, "data", a) if not isinstance(a, dict) else a
+                    aid = d.get("id") if isinstance(d, dict) else getattr(a, "id", str(a))
+                    title = d.get("title", aid) if isinstance(d, dict) else getattr(a, "title", str(aid))
+                    return {"id": aid, "name": title}
+                return True, [_app_dict(a) for a in b["app"].list_apps()], None
             elif action == "launch_app":
                 target = str(arg or "")
                 apps = b["app"].list_apps()
-                found = next((a for a in apps if a.get("id") == target or a.get("title", "").lower() == target.lower()), None)
+                def _match_app(a: Any) -> bool:
+                    d = getattr(a, "data", a) if not isinstance(a, dict) else a
+                    aid = d.get("id", "") if isinstance(d, dict) else getattr(a, "id", "")
+                    title = d.get("title", "") if isinstance(d, dict) else getattr(a, "title", "")
+                    return aid == target or str(title).lower() == target.lower()
+                found = next((a for a in apps if _match_app(a)), None)
                 if not found: return False, None, f"App '{arg}' not found"
                 b["app"].launch(found)
             elif action == "list_inputs":
-                return True, [{"id": s.get("id"), "name": s.get("label", s.get("id"))} for s in b["source"].list_sources()], None
+                def _src_dict(s: Any) -> Dict[str, Any]:
+                    d = getattr(s, "data", s) if not isinstance(s, dict) else s
+                    sid = d.get("id") if isinstance(d, dict) else getattr(s, "id", str(s))
+                    label = d.get("label", sid) if isinstance(d, dict) else getattr(s, "label", str(sid))
+                    return {"id": sid, "name": label}
+                return True, [_src_dict(s) for s in b["source"].list_sources()], None
             elif action == "set_input":
                 target = str(arg or "")
                 srcs = b["source"].list_sources()
-                found = next((s for s in srcs if s.get("id") == target or s.get("label", "").lower() == target.lower()), None)
+                def _match_src(s: Any) -> bool:
+                    d = getattr(s, "data", s) if not isinstance(s, dict) else s
+                    sid = d.get("id", "") if isinstance(d, dict) else getattr(s, "id", "")
+                    label = d.get("label", "") if isinstance(d, dict) else getattr(s, "label", "")
+                    return sid == target or str(label).lower() == target.lower()
+                found = next((s for s in srcs if _match_src(s)), None)
                 if not found: return False, None, f"Input '{arg}' not found"
                 b["source"].set_source(found)
             else:
