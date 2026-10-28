@@ -1,17 +1,26 @@
 # Agent Instructions — TV Remote MCP
 
 ## Project Overview
-Browser-based universal smart TV remote control + MCP server for AI assistants.
+Browser-based universal smart TV remote control + MCP server for AI assistants (LG, Samsung, Roku, Android TV, Fire TV, Sony, Vizio, etc.).
+- **Installer**: `install.py` (Automated dependencies + MCP setup + Skill registration + verification)
 - **Landing page**: `index.html` (GitHub Pages root)
 - **Remote control**: `remote/index.html`
-- **Local relay**: `server/relay.py`
-- **MCP server**: `server/mcp-server.py` (Phase 2)
+- **Local relay**: `server/relay.py` (port 7070)
+- **MCP server**: `server/mcp-server.py` (port 8000)
+- **Agent Skill**: `skills/smart-tv-control/` & `.agents/skills/smart-tv-control/` & `.claude/skills/smart-tv-control/`
+
+## Automated Agent Installation
+When asked to install or configure this repository, run:
+```bash
+python install.py
+```
+This automatically installs dependencies from `requirements.txt`, configures Claude Desktop and Cursor, copies skills, runs verification tests, and discovers smart TVs.
 
 ## Commit Rules
 - **Atomic commits**: Each commit does ONE thing and leaves the project deployable
 - **Commit message format**: `type: short description` where type is `feat`, `fix`, `docs`, `style`, `refactor`, `chore`
 - **Push after each milestone** to keep GitHub Pages current
-- **Never commit**: API keys, pairing tokens, `.env` files, `__pycache__/`
+- **Never commit**: API keys, pairing tokens, `.env` files, `__pycache__/`, `tv-tokens/`
 
 ## Code Rules
 - **No build tooling** — Vanilla HTML/CSS/JS. Tailwind via CDN only.
@@ -21,23 +30,11 @@ Browser-based universal smart TV remote control + MCP server for AI assistants.
 - **Touch targets** — Minimum 48×48px on all interactive elements
 - **Dark theme** — Background `#0a0a0a`, cards `#141414`, accent `#3b82f6`
 
-## File Organization
-```
-index.html           → Landing page
-remote/index.html    → Remote control (self-contained)
-server/relay.py      → Local relay server
-server/mcp-server.py → MCP server (Phase 2)
-docs/                → Markdown documentation
-assets/css/          → Shared stylesheets
-assets/js/           → Shared scripts
-assets/icons/        → SVG icons
-```
-
 ## Testing
-- Open HTML files directly in browser for visual check
-- Run `python server/relay.py` for relay testing
-- Test remote on mobile viewport (Chrome DevTools → 375×812 iPhone)
-- Verify GitHub Pages deployment after push
+- Automated MCP server test: `python tests/test_mcp_server.py`
+- Hardware validation test: `python tests/test_lg_tv.py`
+- Run relay: `python server/relay.py`
+- Run MCP: `python server/mcp-server.py`
 
 ## Brand Protocol Quick Reference
 | Brand | Port | Protocol | Library |

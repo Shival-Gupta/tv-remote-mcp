@@ -1,0 +1,5 @@
+# TV Remote MCP — Dependencies
+pywebostv>=0.8.9
+requests>=2.31.0
+websockets>=12.0
+fastmcp>=0.1.0
