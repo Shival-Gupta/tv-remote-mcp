@@ -607,14 +607,6 @@
   <!-- Application Logic & Hardware Driver Integration -->
   <!-- ======================================================== -->
   <script>
-    // Seamless LAN communication: Automatically switch to HTTP if loaded over HTTPS on public web domain
-    // to prevent browser Mixed Content security from blocking localhost / LAN communication
-    if (location.protocol === 'https:' && location.hostname.includes('shivalgupta.me')) {
-      try {
-        location.replace('http://' + location.host + location.pathname + location.search);
-      } catch (_) {}
-    }
-
     // --- State Storage & Configuration ---
     const STORAGE_KEY = 'tv_remote_mcp_config';
     let appConfig = {
