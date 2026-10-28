@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth bg-[#0a0a0a]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — TV Remote MCP</title>
+  <meta name="description" content="Guides, brand setup recipes, pairing instructions, and AI integration for TV Remote MCP.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'bg-primary': '#0a0a0a',
+            'bg-card': '#141414',
+            'bg-button': '#1e1e1e',
+            'accent': '#3b82f6',
+            'text-primary': '#f5f5f5',
+            'text-secondary': '#888888',
+            'border-custom': '#2a2a2a',
+            'success': '#22c55e',
+            'warning': '#eab308'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen bg-[#0a0a0a] text-neutral-200 flex flex-col font-sans selection:bg-accent/30 selection:text-white">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-border-custom bg-[#0a0a0a]/90 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <a href="../index.html" class="flex items-center gap-2 text-lg font-bold text-white hover:text-accent transition">
+        <span>📺</span>
+        <span>TV Remote <span class="text-accent">MCP</span> <span class="text-xs font-normal text-neutral-400 ml-1">Docs</span></span>
+      </a>
+      <div class="flex items-center gap-3">
+        <a href="../remote/" class="px-3.5 py-1.5 rounded-full bg-accent hover:bg-blue-600 text-white font-medium text-xs transition shadow">
+          Open Remote &rarr;
+        </a>
+        <a href="https://github.com/Shival-Gupta/tv-remote-mcp" target="_blank" rel="noopener noreferrer" class="p-2 text-neutral-400 hover:text-white" aria-label="GitHub">
+          <i data-lucide="github" class="w-5 h-5"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Docs Container -->
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 flex flex-col md:flex-row gap-8 w-full">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="w-full md:w-64 shrink-0">
+      <div class="sticky top-24 flex flex-col gap-1 text-sm bg-bg-card p-3 rounded-2xl border border-border-custom">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-3 py-1.5">Documentation</span>
+        <button onclick="switchDocTab('setup')" id="tab-setup" class="doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-accent bg-accent/10 border border-accent/20">
+          <i data-lucide="rocket" class="w-4 h-4"></i>
+          <span>Setup Guide</span>
+        </button>
+        <button onclick="switchDocTab('brands')" id="tab-brands" class="doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-neutral-400 hover:text-white hover:bg-bg-button">
+          <i data-lucide="tv" class="w-4 h-4"></i>
+          <span>Supported Brands</span>
+        </button>
+        <button onclick="switchDocTab('pairing')" id="tab-pairing" class="doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-neutral-400 hover:text-white hover:bg-bg-button">
+          <i data-lucide="key" class="w-4 h-4"></i>
+          <span>Pairing Recipes</span>
+        </button>
+        <button onclick="switchDocTab('troubleshooting')" id="tab-troubleshooting" class="doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-neutral-400 hover:text-white hover:bg-bg-button">
+          <i data-lucide="alert-circle" class="w-4 h-4"></i>
+          <span>Troubleshooting</span>
+        </button>
+        <button onclick="switchDocTab('ai')" id="tab-ai" class="doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-neutral-400 hover:text-white hover:bg-bg-button">
+          <i data-lucide="bot" class="w-4 h-4"></i>
+          <span>AI / MCP Integration</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="flex-1 bg-bg-card border border-border-custom rounded-2xl p-6 sm:p-10 text-neutral-300 overflow-hidden leading-relaxed">
+      
+      <!-- Section: Setup -->
+      <section id="doc-sec-setup" class="doc-section flex flex-col gap-6">
+        <div class="border-b border-border-custom pb-4">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Getting Started</h1>
+          <p class="text-neutral-400 text-sm">Step-by-step instructions to connect your smart TV with TV Remote MCP.</p>
+        </div>
+
+        <div>
+          <h2 class="text-lg font-bold text-white mb-2">1. Network Prerequisites</h2>
+          <p class="text-sm text-neutral-400 mb-3">Both your controlling device (phone, laptop, tablet) and your Smart TV must be connected to the <strong>same local Wi-Fi or LAN network</strong>.</p>
+          <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-start gap-2">
+            <i data-lucide="info" class="w-4 h-4 shrink-0 mt-0.5"></i>
+            <span>Disable "Client Isolation" or "AP Isolation" in your Wi-Fi router settings if your phone cannot reach your TV's local IP address.</span>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="text-lg font-bold text-white mb-2">2. Zero-Install Web Remote</h2>
+          <p class="text-sm text-neutral-400 mb-3">Roku streaming devices and Roku TVs can be controlled directly from your browser with zero installation.</p>
+          <ol class="list-decimal list-inside space-y-2 text-sm text-neutral-300 pl-1">
+            <li>Open <a href="../remote/" class="text-accent underline">Shival-Gupta.github.io/tv-remote-mcp/remote/</a></li>
+            <li>Input your TV's local IP address (e.g. <code class="bg-[#1e1e1e] px-2 py-0.5 rounded text-neutral-200">192.168.1.11</code>).</li>
+            <li>Select <strong>Roku</strong> as brand and tap <strong>Save & Connect</strong>.</li>
+          </ol>
+        </div>
+
+        <div>
+          <h2 class="text-lg font-bold text-white mb-2">3. Local Relay Server (For All Brands)</h2>
+          <p class="text-sm text-neutral-400 mb-3">LG, Samsung, Android TV, Fire TV, Vizio, and Sony enforce native protocols (WebSocket, ADB, SOAP) that browsers restrict. Running the lightweight relay bridges this gap effortlessly.</p>
+          <div class="bg-black/70 p-4 rounded-xl border border-border-custom font-mono text-xs text-neutral-300 flex flex-col gap-1.5">
+            <span class="text-neutral-500"># 1. Clone & install dependencies</span>
+            <span class="text-blue-400">git clone https://github.com/Shival-Gupta/tv-remote-mcp.git</span>
+            <span class="text-blue-400">cd tv-remote-mcp</span>
+            <span class="text-blue-400">pip install pywebostv requests</span>
+            <span class="text-neutral-500 pt-2"># 2. Run the relay server</span>
+            <span class="text-green-400">python server/relay.py</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Brands -->
+      <section id="doc-sec-brands" class="doc-section hidden flex flex-col gap-6">
+        <div class="border-b border-border-custom pb-4">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Supported TV Brands</h1>
+          <p class="text-neutral-400 text-sm">Detailed protocol and port specifications across all supported manufacturers.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-border-custom text-neutral-400">
+                <th class="py-2.5 px-3">Brand</th>
+                <th class="py-2.5 px-3">Protocol</th>
+                <th class="py-2.5 px-3">Default Port</th>
+                <th class="py-2.5 px-3">Pairing</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border-custom text-neutral-300">
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">LG WebOS</td>
+                <td class="py-3 px-3">WebSocket / pywebostv</td>
+                <td class="py-3 px-3 font-mono">3000 / 3001</td>
+                <td class="py-3 px-3 text-warning">On-screen prompt</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">Samsung Tizen</td>
+                <td class="py-3 px-3">REST & WebSocket</td>
+                <td class="py-3 px-3 font-mono">8001 / 8002</td>
+                <td class="py-3 px-3 text-neutral-400">Auto token</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">Roku</td>
+                <td class="py-3 px-3">HTTP ECP</td>
+                <td class="py-3 px-3 font-mono">8060</td>
+                <td class="py-3 px-3 text-success">None (Zero config)</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">Android / Google TV</td>
+                <td class="py-3 px-3">ADB CLI</td>
+                <td class="py-3 px-3 font-mono">5555</td>
+                <td class="py-3 px-3 text-warning">USB debugging prompt</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">Fire TV</td>
+                <td class="py-3 px-3">ADB CLI</td>
+                <td class="py-3 px-3 font-mono">5555</td>
+                <td class="py-3 px-3 text-warning">ADB prompt</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">Sony Bravia</td>
+                <td class="py-3 px-3">IRCC SOAP</td>
+                <td class="py-3 px-3 font-mono">80</td>
+                <td class="py-3 px-3 text-success">None / PSK</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-semibold text-white">Vizio SmartCast</td>
+                <td class="py-3 px-3">HTTP REST</td>
+                <td class="py-3 px-3 font-mono">7345 / 9000</td>
+                <td class="py-3 px-3 text-success">None for keys</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section: Pairing -->
+      <section id="doc-sec-pairing" class="doc-section hidden flex flex-col gap-6">
+        <div class="border-b border-border-custom pb-4">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Pairing Recipes</h1>
+          <p class="text-neutral-400 text-sm">How to authorize the remote control on your TV screen.</p>
+        </div>
+
+        <div class="space-y-4 text-sm">
+          <div class="p-4 rounded-xl bg-[#181818] border border-border-custom">
+            <h3 class="font-bold text-white mb-1">LG WebOS</h3>
+            <p class="text-neutral-400 text-xs mb-2">When connecting for the first time, a dialog appears on your TV screen asking to allow the connection.</p>
+            <p class="text-xs text-neutral-300">&bull; Click <strong>Allow</strong> with your physical LG remote. The token is saved in <code class="bg-black/50 px-1 py-0.5 rounded text-neutral-200">tv-tokens/tokens.json</code> automatically.</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[#181818] border border-border-custom">
+            <h3 class="font-bold text-white mb-1">Android TV & Fire TV</h3>
+            <p class="text-neutral-400 text-xs mb-2">Enable Developer Options by tapping <em>Build Number</em> 7 times in TV Settings &rarr; About.</p>
+            <p class="text-xs text-neutral-300">&bull; Turn on <strong>USB Debugging</strong>. When prompted on screen, check <em>"Always allow from this computer"</em> and accept.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Troubleshooting -->
+      <section id="doc-sec-troubleshooting" class="doc-section hidden flex flex-col gap-6">
+        <div class="border-b border-border-custom pb-4">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Troubleshooting</h1>
+          <p class="text-neutral-400 text-sm">Resolving common connectivity and network questions.</p>
+        </div>
+
+        <div class="space-y-3 text-sm">
+          <details class="bg-[#181818] p-4 rounded-xl border border-border-custom">
+            <summary class="font-bold text-white cursor-pointer">Why does my phone say "Relay required"?</summary>
+            <p class="text-neutral-400 text-xs mt-2 leading-relaxed">
+              Modern mobile browsers prevent web pages from establishing raw socket connections to internal LAN ports like 3000 (LG) or 5555 (ADB). Running <code class="text-white">relay.py</code> on your computer acts as a secure local bridge.
+            </p>
+          </details>
+
+          <details class="bg-[#181818] p-4 rounded-xl border border-border-custom">
+            <summary class="font-bold text-white cursor-pointer">How do I turn the TV ON if it is sleeping?</summary>
+            <p class="text-neutral-400 text-xs mt-2 leading-relaxed">
+              Ensure "Mobile TV On / Turn on via Wi-Fi" is enabled in your TV's power settings. TV Remote MCP will send a <strong>Wake-on-LAN (WOL)</strong> magic packet broadcast to power on your TV.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <!-- Section: AI / MCP -->
+      <section id="doc-sec-ai" class="doc-section hidden flex flex-col gap-6">
+        <div class="border-b border-border-custom pb-4">
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">AI Assistant Integration (MCP)</h1>
+          <p class="text-neutral-400 text-sm">Model Context Protocol server for Claude, Gemini, ChatGPT, and Codex.</p>
+        </div>
+
+        <p class="text-sm text-neutral-300 leading-relaxed">
+          TV Remote MCP includes a FastMCP server at <code class="bg-[#1e1e1e] px-1.5 py-0.5 rounded text-white">server/mcp-server.py</code> allowing AI coding agents to control your TV through structured tool calls.
+        </p>
+
+        <div class="bg-black/70 p-4 rounded-xl border border-border-custom font-mono text-xs text-neutral-300 flex flex-col gap-2">
+          <span class="text-neutral-500">// claude_desktop_config.json</span>
+          <pre class="text-blue-300">{
+  "mcpServers": {
+    "tv-remote": {
+      "command": "python",
+      "args": ["d:\\Projects\\tv-mcp\\server\\mcp-server.py"]
+    }
+  }
+}</pre>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="border-t border-border-custom py-6 text-center text-xs text-neutral-500">
+    <p>TV Remote MCP &bull; MIT License &bull; <a href="../index.html" class="text-accent hover:underline">Landing Page</a> &bull; <a href="../remote/" class="text-accent hover:underline">Remote Control</a></p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+
+    function switchDocTab(tabName) {
+      document.querySelectorAll('.doc-section').forEach(sec => sec.classList.add('hidden'));
+      const activeSec = document.getElementById(`doc-sec-${tabName}`);
+      if (activeSec) activeSec.classList.remove('hidden');
+
+      document.querySelectorAll('.doc-tab-btn').forEach(btn => {
+        btn.className = 'doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-neutral-400 hover:text-white hover:bg-bg-button';
+      });
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      if (activeBtn) {
+        activeBtn.className = 'doc-tab-btn flex items-center gap-2.5 px-3 py-2 rounded-xl text-left font-medium text-accent bg-accent/10 border border-accent/20';
+      }
+    }
+  </script>
+</body>
+</html>
