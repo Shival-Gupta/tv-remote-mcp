@@ -42,8 +42,8 @@ The local relay server (`server/relay.py`) is a lightweight, zero-configuration 
 git clone https://github.com/Shival-Gupta/tv-remote-mcp.git
 cd tv-remote-mcp
 
-# Install optional TV protocol libraries
-pip install pywebostv requests
+# Run the automated installer (installs dependencies + configures MCP & skills)
+python install.py
 
 # Start the relay server
 python server/relay.py
