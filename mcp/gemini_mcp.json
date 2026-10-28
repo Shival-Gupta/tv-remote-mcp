@@ -1,0 +1,11 @@
+{
+  "name": "tv-remote",
+  "command": "python",
+  "args": ["D:\\Projects\\tv-mcp\\server\\mcp-server.py"],
+  "transport": "stdio",
+  "tools": [
+    "universal_action",
+    "discover",
+    "list_brands"
+  ]
+}

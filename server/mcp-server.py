@@ -13,12 +13,18 @@ import argparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
+import pathlib
+import re
+import socket
 import subprocess
 import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional
 import urllib.request
+
+ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
+TOKENS_FILE = ROOT_DIR / "tv-tokens" / "tokens.json"
 
 # Optional protocol libraries
 try:
@@ -41,28 +47,69 @@ lg_client_cache: Dict[str, Any] = {}
 samsung_session_cache: Dict[str, str] = {}
 
 
+def is_port_open(ip: str, port: int, timeout: float = 1.0) -> bool:
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except (socket.timeout, OSError):
+        return False
+
+
 def get_lg_client(host: str) -> Optional[Any]:
     if not LG_AVAILABLE:
         return None
-    if host not in lg_client_cache:
-        try:
+    if host in lg_client_cache:
+        client = lg_client_cache[host]
+        ws = getattr(client, "ws", None)
+        if ws and not getattr(ws, "terminated", False) and getattr(ws, "sock", None):
+            return client
+        lg_client_cache.pop(host, None)
+
+    # Check reachability before attempting WebSocket connection
+    p3001 = is_port_open(host, 3001, timeout=1.0)
+    p3000 = is_port_open(host, 3000, timeout=0.8) if not p3001 else False
+    if not p3001 and not p3000:
+        return None
+
+    try:
+        if p3001:
             try:
                 client = WebOSClient(host, secure=True)
                 client.connect()
             except Exception:
                 client = WebOSClient(host, secure=False)
                 client.connect()
-            store = {}
-            for s in client.register(store):
-                if s == 1:
-                    print(f"[LG TV] Pairing prompted on {host} - approve on screen")
-                elif s == 2:
-                    print(f"[LG TV] Paired with {host}")
-            lg_client_cache[host] = client
-        except Exception as exc:
-            print(f"[LG TV] Connection failed: {exc}", file=sys.stderr)
-            return None
-    return lg_client_cache.get(host)
+        else:
+            client = WebOSClient(host, secure=False)
+            client.connect()
+
+        # Load stored pairing token from tokens.json
+        store = {}
+        if TOKENS_FILE.exists():
+            try:
+                with open(TOKENS_FILE, "r", encoding="utf-8") as f:
+                    store = json.load(f).get(host, {})
+            except Exception:
+                pass
+
+        for s in client.register(store):
+            if s == 2:  # REGISTERED
+                try:
+                    all_tokens = {}
+                    if TOKENS_FILE.exists():
+                        with open(TOKENS_FILE, "r", encoding="utf-8") as f:
+                            all_tokens = json.load(f)
+                    all_tokens.setdefault(host, {}).update(store)
+                    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+                        json.dump(all_tokens, f, indent=2)
+                except Exception:
+                    pass
+                break
+        lg_client_cache[host] = client
+        return client
+    except Exception as exc:
+        print(f"[LG TV] Connection failed: {exc}", file=sys.stderr)
+        return None
 
 
 def send_wol(ip: str, mac: Optional[str] = None) -> bool:
@@ -220,27 +267,28 @@ def execute_tv_action(host: str, brand: str, action: str, arg: Optional[str] = N
             return {"success": False, "error": f"Unsupported brand '{brand}' without relay: {exc}"}
 
 
+def universal_action(host: str, brand: str, action: str, arg: Optional[str] = None) -> Dict[str, Any]:
+    """Execute a smart TV action across LG, Samsung, Roku, Android TV, Sony, etc.
+
+    Actions include: power_off, power_on, volume_up, volume_down, mute,
+    volume_set, up, down, left, right, enter, back, home, media_play,
+    media_pause, media_stop, launch_app, list_apps, set_input.
+    """
+    return execute_tv_action(host, brand, action, arg)
+
+
+def list_brands() -> List[str]:
+    """List all supported smart TV brand identifiers."""
+    return ["lg", "samsung", "android", "roku", "fire_tv", "vizio", "sony", "philips", "panasonic", "tcl"]
+
+
 # FastMCP Tool Registration (if installed)
 MCP_AVAILABLE = False
 try:
     from mcp.server.fastmcp import FastMCP
     mcp = FastMCP("universal-smart-tv")
-
-    @mcp.tool()
-    def universal_action(host: str, brand: str, action: str, arg: Optional[str] = None) -> Dict[str, Any]:
-        """Execute a smart TV action across LG, Samsung, Roku, Android TV, Sony, etc.
-
-        Actions include: power_off, power_on, volume_up, volume_down, mute,
-        volume_set, up, down, left, right, enter, back, home, media_play,
-        media_pause, media_stop, launch_app, list_apps, set_input.
-        """
-        return execute_tv_action(host, brand, action, arg)
-
-    @mcp.tool()
-    def list_brands() -> List[str]:
-        """List all supported smart TV brand identifiers."""
-        return ["lg", "samsung", "android", "roku", "fire_tv", "vizio", "sony", "philips", "panasonic", "tcl"]
-
+    mcp.tool()(universal_action)
+    mcp.tool()(list_brands)
     MCP_AVAILABLE = True
 except ImportError:
     pass

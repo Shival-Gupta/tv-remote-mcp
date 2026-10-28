@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tv-remote": {
+      "command": "python",
+      "args": [
+        "D:\\Projects\\tv-mcp\\server\\mcp-server.py"
+      ],
+      "env": {
+        "STV_HOST": "0.0.0.0",
+        "STV_PORT": "8000"
+      }
+    }
+  }
+}
