@@ -113,7 +113,14 @@
       align-items: center;
       justify-content: center;
       color: #a3a3a3;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
     }
+    .dpad-arrow.top-2 { top: 0.5rem; transform: translate(-50%, 0); }
+    .dpad-arrow.bottom-2 { top: auto; bottom: 0.5rem; transform: translate(-50%, 0); }
+    .dpad-arrow.left-2 { left: 0.5rem; top: 50%; transform: translate(0, -50%); }
+    .dpad-arrow.right-2 { left: auto; right: 0.5rem; top: 50%; transform: translate(0, -50%); }
     .remote-nav-btn {
       width: 2.25rem;
       height: 2.25rem;
