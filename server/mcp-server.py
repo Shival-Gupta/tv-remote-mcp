@@ -46,13 +46,17 @@ def get_lg_client(host: str) -> Optional[Any]:
         return None
     if host not in lg_client_cache:
         try:
-            client = WebOSClient(host)
-            client.connect()
+            try:
+                client = WebOSClient(host, secure=True)
+                client.connect()
+            except Exception:
+                client = WebOSClient(host, secure=False)
+                client.connect()
             store = {}
             for s in client.register(store):
-                if s == 2:
+                if s == 1:
                     print(f"[LG TV] Pairing prompted on {host} - approve on screen")
-                elif s == 3:
+                elif s == 2:
                     print(f"[LG TV] Paired with {host}")
             lg_client_cache[host] = client
         except Exception as exc:

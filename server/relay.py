@@ -201,7 +201,19 @@ class LGWebOSHandler:
     """LG WebOS WebSocket control via pywebostv."""
 
     @staticmethod
-    def get_client(ip: str) -> Any:
+    def _create_connected_client(ip: str) -> Any:
+        # Try secure=True first (WebOS 4.0+ uses SSL on port 3001), fallback to secure=False
+        try:
+            c = WebOSClient(ip, secure=True)
+            c.connect()
+            return c
+        except Exception:
+            c = WebOSClient(ip, secure=False)
+            c.connect()
+            return c
+
+    @classmethod
+    def get_client(cls, ip: str) -> Any:
         cache_key = f"lg:{ip}"
         with CACHE_LOCK:
             if cache_key in CONNECTION_CACHE:
@@ -210,8 +222,7 @@ class LGWebOSHandler:
             raise RuntimeError("pywebostv not installed. Run 'pip install pywebostv'")
 
         store = PAIRING_TOKENS.setdefault(ip, {})
-        client = WebOSClient(ip)
-        client.connect()
+        client = cls._create_connected_client(ip)
         for status in client.register(store):
             if status == WebOSClient.REGISTERED:
                 save_pairing_tokens()
@@ -231,8 +242,7 @@ class LGWebOSHandler:
             return {"status": "error", "message": "pywebostv not installed"}
         store = PAIRING_TOKENS.setdefault(ip, {})
         try:
-            client = WebOSClient(ip)
-            client.connect()
+            client = cls._create_connected_client(ip)
             reg = client.register(store)
             status = next(reg)
             if status == WebOSClient.PROMPTED:
@@ -246,6 +256,9 @@ class LGWebOSHandler:
                         pass
                 threading.Thread(target=_wait, daemon=True).start()
                 return {"status": "pairing", "message": "Approve on TV screen"}
+            elif status == WebOSClient.REGISTERED:
+                save_pairing_tokens()
+                return {"status": "paired", "message": "Paired successfully"}
             return {"status": "paired", "message": "Paired successfully"}
         except Exception as exc:
             return {"status": "error", "message": str(exc)}
