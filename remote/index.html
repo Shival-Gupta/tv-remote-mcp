@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0a0a0a]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TV Remote — Universal Smart TV Controller</title>
+  <meta name="description" content="Phone-first universal smart TV remote control web application. Zero install, works over local Wi-Fi.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="../manifest.json">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'bg-primary': '#0a0a0a',
+            'bg-card': '#141414',
+            'bg-button': '#1e1e1e',
+            'bg-button-hover': '#2a2a2a',
+            'bg-button-active': '#333333',
+            'accent': '#3b82f6',
+            'accent-glow': 'rgba(59, 130, 246, 0.4)',
+            'text-primary': '#f5f5f5',
+            'text-secondary': '#888888',
+            'text-muted': '#555555',
+            'border-custom': '#2a2a2a',
+            'success': '#22c55e',
+            'warning': '#eab308',
+            'danger': '#ef4444'
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+            mono: ['SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Mobile-first touch enhancements & prevent accidental UI zoom/scroll */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      height: -webkit-fill-available;
+      overflow: hidden;
+      background-color: #0a0a0a;
+      color: #f5f5f5;
+      touch-action: manipulation;
+    }
+
+    button, .touch-btn {
+      touch-action: manipulation;
+      transition: transform 0.08s ease, background-color 0.1s ease, border-color 0.1s ease, box-shadow 0.1s ease;
+      cursor: pointer;
+    }
+
+    button:active, .touch-btn:active, .is-active {
+      transform: scale(0.94);
+      background-color: #333333 !important;
+    }
+
+    /* Tactile button glow */
+    .btn-glow:active {
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.6);
+    }
+
+    /* Error flash */
+    @keyframes flash-error {
+      0%, 100% { border-color: #2a2a2a; }
+      50% { border-color: #ef4444; background-color: rgba(239, 68, 68, 0.2); }
+    }
+    .flash-fail {
+      animation: flash-error 0.25s ease;
+    }
+
+    /* D-Pad Styling */
+    .dpad-container {
+      width: 190px;
+      height: 190px;
+      position: relative;
+      border-radius: 9999px;
+      background: radial-gradient(circle at 50% 50%, #1e1e1e 0%, #131313 100%);
+      border: 2px solid #282828;
+      box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.6);
+      touch-action: none;
+    }
+
+    .dpad-zone {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      transition: color 0.1s ease, background-color 0.1s ease;
+    }
+
+    .dpad-zone:active, .dpad-zone.active {
+      color: #3b82f6;
+      background-color: rgba(59, 130, 246, 0.15);
+    }
+
+    .dpad-up {
+      top: 0; left: 45px; right: 45px; height: 60px;
+      border-radius: 95px 95px 0 0;
+    }
+    .dpad-down {
+      bottom: 0; left: 45px; right: 45px; height: 60px;
+      border-radius: 0 0 95px 95px;
+    }
+    .dpad-left {
+      left: 0; top: 45px; bottom: 45px; width: 60px;
+      border-radius: 95px 0 0 95px;
+    }
+    .dpad-right {
+      right: 0; top: 45px; bottom: 45px; width: 60px;
+      border-radius: 0 95px 95px 0;
+    }
+
+    .dpad-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 66px;
+      height: 66px;
+      border-radius: 9999px;
+      background: #252525;
+      border: 2px solid #363636;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.875rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dpad-center:active {
+      transform: translate(-50%, -50%) scale(0.92);
+      background: #3b82f6;
+    }
+
+    /* Custom scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-full bg-[#0a0a0a] text-text-primary overflow-hidden font-sans">
+
+  <!-- ======================================================== -->
+  <!-- Top App Bar / Connection Status -->
+  <!-- ======================================================== -->
+  <header class="h-13 min-h-[52px] px-4 flex items-center justify-between border-b border-border-custom bg-[#0f0f0f]/90 backdrop-blur-md shrink-0 z-20">
+    <div class="flex items-center gap-2.5 overflow-hidden cursor-pointer" onclick="openSetupModal()" title="Change TV settings">
+      <div id="status-indicator" class="w-2.5 h-2.5 rounded-full bg-danger animate-pulse shrink-0"></div>
+      <div class="flex flex-col truncate">
+        <span id="tv-name-display" class="text-xs font-semibold tracking-wide text-neutral-200 truncate">Tap to Connect TV</span>
+        <span id="tv-status-subtitle" class="text-[10px] text-neutral-500 font-mono truncate">Not connected</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-1">
+      <button onclick="toggleRelayStatusPrompt()" id="relay-pill" class="text-[10px] font-mono px-2 py-1 rounded bg-[#1c1c1c] border border-border-custom text-neutral-400 hover:text-white flex items-center gap-1" title="Local Relay Status">
+        <span id="relay-dot" class="w-1.5 h-1.5 rounded-full bg-neutral-500"></span>
+        <span id="relay-label">Relay</span>
+      </button>
+      <button onclick="openSettingsModal()" class="w-9 h-9 flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-bg-button transition" aria-label="Settings">
+        <i data-lucide="settings" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ======================================================== -->
+  <!-- Remote Control Body (Viewport Fit, No Global Scroll) -->
+  <!-- ======================================================== -->
+  <main class="flex-1 flex flex-col justify-between max-w-sm w-full mx-auto px-4 py-2 sm:py-3 overflow-hidden select-none">
+    
+    <!-- Row 1: Power & Mute Quick Actions -->
+    <section class="flex items-center justify-between px-3 pt-1 shrink-0" aria-label="Quick Actions">
+      <button id="btn-power" onclick="handleCommand('power_off')" class="w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-danger/10 border border-danger/30 text-danger flex items-center justify-center shadow-lg active:scale-90" aria-label="Power Off">
+        <i data-lucide="power" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Brand Badge -->
+      <button onclick="openSetupModal()" class="px-3 py-1.5 rounded-full bg-[#161616] border border-border-custom text-[11px] font-medium text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 transition flex items-center gap-1.5" aria-label="Selected TV Brand">
+        <span id="active-brand-badge" class="uppercase font-semibold tracking-wider text-accent">TV</span>
+        <i data-lucide="chevron-down" class="w-3 h-3 text-neutral-500"></i>
+      </button>
+
+      <button id="btn-mute" onclick="handleCommand('mute')" class="w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-bg-button border border-border-custom text-neutral-300 flex items-center justify-center shadow-lg active:scale-90" aria-label="Mute Audio">
+        <i data-lucide="volume-x" class="w-5 h-5"></i>
+      </button>
+    </section>
+
+    <!-- Row 2: Directional Pad (D-Pad) -->
+    <section class="flex items-center justify-center my-auto shrink-0 py-1" aria-label="Navigation Pad">
+      <div id="dpad-container" class="dpad-container">
+        <!-- Up Zone -->
+        <div id="dpad-zone-up" class="dpad-zone dpad-up" role="button" aria-label="Navigate Up" onclick="handleCommand('up')">
+          <i data-lucide="chevron-up" class="w-6 h-6"></i>
+        </div>
+        <!-- Right Zone -->
+        <div id="dpad-zone-right" class="dpad-zone dpad-right" role="button" aria-label="Navigate Right" onclick="handleCommand('right')">
+          <i data-lucide="chevron-right" class="w-6 h-6"></i>
+        </div>
+        <!-- Down Zone -->
+        <div id="dpad-zone-down" class="dpad-zone dpad-down" role="button" aria-label="Navigate Down" onclick="handleCommand('down')">
+          <i data-lucide="chevron-down" class="w-6 h-6"></i>
+        </div>
+        <!-- Left Zone -->
+        <div id="dpad-zone-left" class="dpad-zone dpad-left" role="button" aria-label="Navigate Left" onclick="handleCommand('left')">
+          <i data-lucide="chevron-left" class="w-6 h-6"></i>
+        </div>
+        <!-- OK / Select Center Button -->
+        <button id="dpad-center" class="dpad-center" onclick="handleCommand('enter')" aria-label="Select / OK">
+          OK
+        </button>
+      </div>
+    </section>
+
+    <!-- Row 3: Navigation Triad (Back / Home / Menu) -->
+    <section class="flex items-center justify-around px-2 shrink-0 py-1" aria-label="Navigation Controls">
+      <button onclick="handleCommand('back')" class="touch-btn w-12 h-12 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center text-neutral-300 shadow hover:text-white" aria-label="Back">
+        <i data-lucide="undo-2" class="w-5 h-5"></i>
+      </button>
+      <button onclick="handleCommand('home')" class="touch-btn w-12 h-12 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center text-neutral-300 shadow hover:text-white" aria-label="Home Screen">
+        <i data-lucide="home" class="w-5 h-5"></i>
+      </button>
+      <button onclick="handleCommand('menu')" class="touch-btn w-12 h-12 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center text-neutral-300 shadow hover:text-white" aria-label="TV Menu">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+    </section>
+
+    <!-- Row 4: Dual Rockers (Volume & Channel) -->
+    <section class="grid grid-cols-2 gap-4 px-3 shrink-0 py-1" aria-label="Volume and Channel Rockers">
+      <!-- Volume Rocker -->
+      <div class="h-28 bg-[#161616] border border-border-custom rounded-2xl flex flex-col justify-between p-1.5 shadow-inner">
+        <button onmousedown="startRepeat('volume_up')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()" ontouchstart="startRepeat('volume_up')" ontouchend="stopRepeat()" class="touch-btn h-10 w-full rounded-xl bg-bg-button flex items-center justify-center text-neutral-200 active:bg-accent active:text-white" aria-label="Volume Up">
+          <i data-lucide="plus" class="w-4 h-4 font-bold"></i>
+        </button>
+        <span class="text-[10px] font-bold tracking-widest text-neutral-500 uppercase text-center select-none py-0.5">VOL</span>
+        <button onmousedown="startRepeat('volume_down')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()" ontouchstart="startRepeat('volume_down')" ontouchend="stopRepeat()" class="touch-btn h-10 w-full rounded-xl bg-bg-button flex items-center justify-center text-neutral-200 active:bg-accent active:text-white" aria-label="Volume Down">
+          <i data-lucide="minus" class="w-4 h-4 font-bold"></i>
+        </button>
+      </div>
+
+      <!-- Channel Rocker -->
+      <div class="h-28 bg-[#161616] border border-border-custom rounded-2xl flex flex-col justify-between p-1.5 shadow-inner">
+        <button onmousedown="startRepeat('channel_up')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()" ontouchstart="startRepeat('channel_up')" ontouchend="stopRepeat()" class="touch-btn h-10 w-full rounded-xl bg-bg-button flex items-center justify-center text-neutral-200 active:bg-accent active:text-white" aria-label="Channel Up">
+          <i data-lucide="chevron-up" class="w-4 h-4 font-bold"></i>
+        </button>
+        <span class="text-[10px] font-bold tracking-widest text-neutral-500 uppercase text-center select-none py-0.5">CH</span>
+        <button onmousedown="startRepeat('channel_down')" onmouseup="stopRepeat()" onmouseleave="stopRepeat()" ontouchstart="startRepeat('channel_down')" ontouchend="stopRepeat()" class="touch-btn h-10 w-full rounded-xl bg-bg-button flex items-center justify-center text-neutral-200 active:bg-accent active:text-white" aria-label="Channel Down">
+          <i data-lucide="chevron-down" class="w-4 h-4 font-bold"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Row 5: Media Controls Bar -->
+    <section class="flex items-center justify-between px-2 shrink-0 py-1" aria-label="Media Playback Controls">
+      <button onclick="handleCommand('rewind')" class="touch-btn w-10 h-10 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center text-neutral-400 hover:text-white" aria-label="Rewind">
+        <i data-lucide="rewind" class="w-4 h-4"></i>
+      </button>
+      <button id="btn-play-pause" onclick="handlePlayPauseToggle()" class="touch-btn w-12 h-12 rounded-xl bg-accent text-white border border-blue-400/40 flex items-center justify-center shadow-md active:bg-blue-600" aria-label="Play or Pause">
+        <i id="play-pause-icon" data-lucide="play" class="w-5 h-5 ml-0.5"></i>
+      </button>
+      <button onclick="handleCommand('fast_forward')" class="touch-btn w-10 h-10 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center text-neutral-400 hover:text-white" aria-label="Fast Forward">
+        <i data-lucide="fast-forward" class="w-4 h-4"></i>
+      </button>
+      <button onclick="handleCommand('stop')" class="touch-btn w-10 h-10 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center text-neutral-400 hover:text-white" aria-label="Stop Media">
+        <i data-lucide="square" class="w-3.5 h-3.5"></i>
+      </button>
+    </section>
+
+    <!-- Row 6: App Launch Shortcuts (Horizontal Scroll) -->
+    <section class="shrink-0 py-1 overflow-hidden" aria-label="Quick App Launchers">
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 px-1">
+        <button onclick="handleAppLaunch('netflix')" class="touch-btn shrink-0 px-3.5 py-1.5 rounded-lg bg-[#1a1212] border border-red-900/40 text-red-500 font-bold text-xs tracking-tight shadow">
+          NETFLIX
+        </button>
+        <button onclick="handleAppLaunch('youtube')" class="touch-btn shrink-0 px-3.5 py-1.5 rounded-lg bg-[#1a1a1a] border border-neutral-700 text-white font-bold text-xs tracking-tight shadow flex items-center gap-1">
+          <i data-lucide="play" class="w-3 h-3 text-red-600 fill-red-600"></i> YouTube
+        </button>
+        <button onclick="handleAppLaunch('prime')" class="touch-btn shrink-0 px-3.5 py-1.5 rounded-lg bg-[#0e1724] border border-blue-900/40 text-blue-400 font-bold text-xs tracking-tight shadow">
+          Prime
+        </button>
+        <button onclick="handleAppLaunch('disney')" class="touch-btn shrink-0 px-3.5 py-1.5 rounded-lg bg-[#0d1428] border border-blue-700/40 text-blue-300 font-bold text-xs tracking-tight shadow">
+          Disney+
+        </button>
+        <button onclick="handleAppLaunch('spotify')" class="touch-btn shrink-0 px-3.5 py-1.5 rounded-lg bg-[#0f1d14] border border-green-900/40 text-green-400 font-bold text-xs tracking-tight shadow">
+          Spotify
+        </button>
+        <button onclick="handleAppLaunch('apple_tv')" class="touch-btn shrink-0 px-3.5 py-1.5 rounded-lg bg-[#1e1e1e] border border-neutral-600 text-neutral-200 font-bold text-xs tracking-tight shadow">
+          Apple TV
+        </button>
+      </div>
+    </section>
+
+    <!-- Row 7: Utility Footer (Keyboard, Input Source Selector, Feedback toast) -->
+    <section class="flex items-center justify-between gap-3 pt-1 pb-1 shrink-0" aria-label="Utilities">
+      <button onclick="openKeyboardModal()" class="touch-btn flex-1 h-10 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center gap-2 text-xs font-medium text-neutral-300 hover:text-white" aria-label="Open Keyboard">
+        <i data-lucide="keyboard" class="w-4 h-4 text-neutral-400"></i>
+        <span>Keyboard</span>
+      </button>
+
+      <button onclick="openInputModal()" class="touch-btn flex-1 h-10 rounded-xl bg-bg-button border border-border-custom flex items-center justify-center gap-2 text-xs font-medium text-neutral-300 hover:text-white" aria-label="Change TV Source">
+        <i data-lucide="tv" class="w-4 h-4 text-neutral-400"></i>
+        <span>Source</span>
+      </button>
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 1: Connect / Setup TV Overlay -->
+  <!-- ======================================================== -->
+  <div id="modal-setup" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 hidden transition-opacity duration-200">
+    <div class="bg-[#141414] border border-border-custom w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto no-scrollbar">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-border-custom">
+        <div class="flex items-center gap-2">
+          <i data-lucide="wifi" class="w-5 h-5 text-accent"></i>
+          <h2 class="text-lg font-bold text-white">Connect to Your TV</h2>
+        </div>
+        <button onclick="closeSetupModal()" class="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-bg-button" aria-label="Close setup">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Relay Status Alert Box -->
+      <div id="setup-relay-banner" class="p-3 rounded-xl bg-[#1c1c1c] border border-border-custom flex items-start gap-3">
+        <div id="setup-relay-dot" class="w-2.5 h-2.5 rounded-full bg-warning mt-1 shrink-0"></div>
+        <div class="text-xs">
+          <p id="setup-relay-text" class="font-medium text-neutral-200">Checking local relay...</p>
+          <p class="text-neutral-500 text-[11px] mt-0.5">Relay bridges browser to TV protocols on your local Wi-Fi.</p>
+        </div>
+      </div>
+
+      <!-- TV IP Address Input -->
+      <div class="flex flex-col gap-1.5">
+        <label for="input-tv-ip" class="text-xs font-semibold uppercase tracking-wider text-neutral-400">TV IP Address</label>
+        <div class="relative">
+          <input id="input-tv-ip" type="text" placeholder="192.168.1.11" class="w-full h-11 px-3.5 rounded-xl bg-[#0a0a0a] border border-border-custom text-white font-mono text-sm placeholder:text-neutral-600 focus:outline-none focus:border-accent">
+          <button type="button" onclick="scanNetworkDevices()" id="btn-scan-lan" class="absolute right-1.5 top-1.5 h-8 px-2.5 rounded-lg bg-bg-button text-[11px] font-medium text-accent hover:bg-neutral-800 transition flex items-center gap-1">
+            <i data-lucide="scan" class="w-3.5 h-3.5"></i>
+            <span>Scan</span>
+          </button>
+        </div>
+        <p class="text-[11px] text-neutral-500">Find in TV Settings &rarr; Network &rarr; IP Address.</p>
+      </div>
+
+      <!-- Discovered Devices (shown after scan) -->
+      <div id="discovered-list-container" class="hidden flex flex-col gap-2">
+        <span class="text-xs font-semibold text-neutral-400">Found Devices:</span>
+        <div id="discovered-devices-list" class="flex flex-col gap-1.5 max-h-36 overflow-y-auto no-scrollbar"></div>
+      </div>
+
+      <!-- Brand Selection Grid -->
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-semibold uppercase tracking-wider text-neutral-400">Brand</label>
+        <div class="grid grid-cols-3 gap-2" id="brand-selector-grid">
+          <button type="button" onclick="selectBrandOption('lg')" data-brand="lg" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">LG WebOS</button>
+          <button type="button" onclick="selectBrandOption('samsung')" data-brand="samsung" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Samsung</button>
+          <button type="button" onclick="selectBrandOption('android')" data-brand="android" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Android TV</button>
+          <button type="button" onclick="selectBrandOption('roku')" data-brand="roku" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Roku</button>
+          <button type="button" onclick="selectBrandOption('fire_tv')" data-brand="fire_tv" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Fire TV</button>
+          <button type="button" onclick="selectBrandOption('vizio')" data-brand="vizio" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Vizio</button>
+          <button type="button" onclick="selectBrandOption('sony')" data-brand="sony" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Sony</button>
+          <button type="button" onclick="selectBrandOption('tcl')" data-brand="tcl" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">TCL</button>
+          <button type="button" onclick="selectBrandOption('generic')" data-brand="generic" class="brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500">Other / Generic</button>
+        </div>
+      </div>
+
+      <!-- Connect Button -->
+      <button onclick="saveAndConnectTV()" class="w-full h-12 rounded-xl bg-accent hover:bg-blue-600 font-semibold text-white text-sm transition shadow-lg flex items-center justify-center gap-2">
+        <i data-lucide="link" class="w-4 h-4"></i>
+        <span>Save & Connect</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 2: TV Pairing Prompt (e.g., for LG WebOS prompt) -->
+  <!-- ======================================================== -->
+  <div id="modal-pairing" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-[#141414] border border-border-custom w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl flex flex-col items-center gap-4">
+      <div class="w-14 h-14 rounded-full bg-blue-500/10 border border-blue-500/20 text-accent flex items-center justify-center animate-pulse">
+        <i data-lucide="tv" class="w-7 h-7"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-white mb-1">Check Your TV Screen</h3>
+        <p id="pairing-message-text" class="text-neutral-400 text-xs leading-relaxed">
+          A pairing prompt has appeared on your TV. Please select <strong class="text-white">&ldquo;Allow&rdquo;</strong> using your physical remote.
+        </p>
+      </div>
+      <div class="w-full pt-2 flex flex-col gap-2">
+        <button onclick="completePairingCheck()" class="w-full h-11 rounded-xl bg-accent hover:bg-blue-600 text-white font-medium text-sm transition">
+          I Approved It
+        </button>
+        <button onclick="closePairingModal()" class="w-full h-10 rounded-xl bg-bg-button text-neutral-400 hover:text-white text-xs">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 3: QWERTY Keyboard Overlay -->
+  <!-- ======================================================== -->
+  <div id="modal-keyboard" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col justify-end p-0 sm:p-4 hidden">
+    <div class="bg-[#121212] border-t sm:border border-border-custom w-full max-w-md mx-auto rounded-t-3xl sm:rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
+      
+      <div class="flex items-center justify-between pb-2 border-b border-border-custom">
+        <span class="text-xs font-semibold text-neutral-300">TV Virtual Keyboard</span>
+        <button onclick="closeKeyboardModal()" class="p-1 rounded text-neutral-400 hover:text-white" aria-label="Close keyboard">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Typed Preview Input -->
+      <div class="flex gap-2">
+        <input id="keyboard-input-preview" type="text" placeholder="Type text to send to TV..." class="flex-1 h-10 px-3 rounded-xl bg-[#0a0a0a] border border-border-custom text-white text-sm focus:outline-none focus:border-accent">
+        <button onclick="sendKeyboardString()" class="px-4 h-10 rounded-xl bg-accent text-white font-semibold text-xs active:bg-blue-600">Send</button>
+      </div>
+
+      <!-- Soft Keyboard Keys -->
+      <div class="flex flex-col gap-1.5 pt-1 text-sm font-medium">
+        <!-- Row 1 -->
+        <div class="flex justify-center gap-1">
+          <button onclick="sendChar('1')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">1</button>
+          <button onclick="sendChar('2')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">2</button>
+          <button onclick="sendChar('3')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">3</button>
+          <button onclick="sendChar('4')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">4</button>
+          <button onclick="sendChar('5')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">5</button>
+          <button onclick="sendChar('6')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">6</button>
+          <button onclick="sendChar('7')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">7</button>
+          <button onclick="sendChar('8')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">8</button>
+          <button onclick="sendChar('9')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">9</button>
+          <button onclick="sendChar('0')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">0</button>
+        </div>
+        <!-- Row 2 -->
+        <div class="flex justify-center gap-1">
+          <button onclick="sendChar('q')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">Q</button>
+          <button onclick="sendChar('w')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">W</button>
+          <button onclick="sendChar('e')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">E</button>
+          <button onclick="sendChar('r')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">R</button>
+          <button onclick="sendChar('t')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">T</button>
+          <button onclick="sendChar('y')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">Y</button>
+          <button onclick="sendChar('u')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">U</button>
+          <button onclick="sendChar('i')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">I</button>
+          <button onclick="sendChar('o')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">O</button>
+          <button onclick="sendChar('p')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">P</button>
+        </div>
+        <!-- Row 3 -->
+        <div class="flex justify-center gap-1">
+          <button onclick="sendChar('a')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">A</button>
+          <button onclick="sendChar('s')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">S</button>
+          <button onclick="sendChar('d')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">D</button>
+          <button onclick="sendChar('f')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">F</button>
+          <button onclick="sendChar('g')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">G</button>
+          <button onclick="sendChar('h')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">H</button>
+          <button onclick="sendChar('j')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">J</button>
+          <button onclick="sendChar('k')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">K</button>
+          <button onclick="sendChar('l')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">L</button>
+        </div>
+        <!-- Row 4 -->
+        <div class="flex justify-center gap-1">
+          <button onclick="sendChar('z')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">Z</button>
+          <button onclick="sendChar('x')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">X</button>
+          <button onclick="sendChar('c')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">C</button>
+          <button onclick="sendChar('v')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">V</button>
+          <button onclick="sendChar('b')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">B</button>
+          <button onclick="sendChar('n')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">N</button>
+          <button onclick="sendChar('m')" class="touch-btn flex-1 h-9 rounded bg-[#202020] text-neutral-200">M</button>
+          <button onclick="handleKeyboardAction('backspace')" class="touch-btn px-3 h-9 rounded bg-[#2c2222] text-red-300 font-bold flex items-center justify-center">
+            <i data-lucide="delete" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <!-- Row 5: Space & Enter -->
+        <div class="flex justify-center gap-1 pt-1">
+          <button onclick="sendChar(' ')" class="touch-btn flex-[3] h-10 rounded-lg bg-[#252525] text-neutral-300 font-medium">Space</button>
+          <button onclick="handleKeyboardAction('enter')" class="touch-btn flex-1 h-10 rounded-lg bg-accent text-white font-semibold">Enter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 4: Input / TV Source Selection -->
+  <!-- ======================================================== -->
+  <div id="modal-input" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-[#141414] border border-border-custom w-full max-w-sm rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
+      <div class="flex items-center justify-between pb-2 border-b border-border-custom">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="tv" class="w-4 h-4 text-accent"></i>
+          <span>Select Input Source</span>
+        </h3>
+        <button onclick="closeInputModal()" class="p-1 rounded text-neutral-400 hover:text-white" aria-label="Close inputs">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2" id="input-sources-container">
+        <button onclick="handleSetInput('HDMI_1')" class="touch-btn h-12 rounded-xl bg-bg-button border border-border-custom text-xs font-semibold text-neutral-200 hover:border-accent">HDMI 1</button>
+        <button onclick="handleSetInput('HDMI_2')" class="touch-btn h-12 rounded-xl bg-bg-button border border-border-custom text-xs font-semibold text-neutral-200 hover:border-accent">HDMI 2</button>
+        <button onclick="handleSetInput('HDMI_3')" class="touch-btn h-12 rounded-xl bg-bg-button border border-border-custom text-xs font-semibold text-neutral-200 hover:border-accent">HDMI 3</button>
+        <button onclick="handleSetInput('HDMI_4')" class="touch-btn h-12 rounded-xl bg-bg-button border border-border-custom text-xs font-semibold text-neutral-200 hover:border-accent">HDMI 4</button>
+        <button onclick="handleSetInput('AV')" class="touch-btn h-12 rounded-xl bg-bg-button border border-border-custom text-xs font-semibold text-neutral-200 hover:border-accent">AV</button>
+        <button onclick="handleSetInput('TV')" class="touch-btn h-12 rounded-xl bg-bg-button border border-border-custom text-xs font-semibold text-neutral-200 hover:border-accent">Live TV / Tuner</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 5: App Settings & Configuration Drawer -->
+  <!-- ======================================================== -->
+  <div id="modal-settings" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-[#141414] border border-border-custom w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto no-scrollbar">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-border-custom">
+        <div class="flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-accent"></i>
+          <h2 class="text-base font-bold text-white">Remote Settings</h2>
+        </div>
+        <button onclick="closeSettingsModal()" class="p-1 rounded text-neutral-400 hover:text-white" aria-label="Close settings">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Relay Endpoint Configuration -->
+      <div class="flex flex-col gap-1.5">
+        <label for="settings-relay-url" class="text-xs font-semibold text-neutral-400">Local Relay Server URL</label>
+        <div class="flex gap-2">
+          <input id="settings-relay-url" type="text" value="http://localhost:7070" class="flex-1 h-10 px-3 rounded-xl bg-[#0a0a0a] border border-border-custom text-white font-mono text-xs focus:outline-none focus:border-accent">
+          <button onclick="testRelayConnection()" class="px-3 rounded-xl bg-bg-button text-xs font-medium text-accent hover:bg-neutral-800">Test</button>
+        </div>
+        <p class="text-[11px] text-neutral-500">If accessing from phone, use your PC's LAN IP: <code class="text-neutral-400">http://192.168.1.XX:7070</code></p>
+      </div>
+
+      <!-- TV IP & Brand Shortcut -->
+      <div class="flex flex-col gap-1.5 pt-2 border-t border-border-custom">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-neutral-400">Current TV Config</span>
+          <button onclick="closeSettingsModal(); openSetupModal();" class="text-xs text-accent hover:underline">Change</button>
+        </div>
+        <div class="p-3 rounded-xl bg-[#0e0e0e] border border-border-custom text-xs font-mono text-neutral-300 flex justify-between">
+          <span>IP: <strong id="settings-current-ip" class="text-white">None</strong></span>
+          <span>Brand: <strong id="settings-current-brand" class="text-white uppercase">None</strong></span>
+        </div>
+      </div>
+
+      <!-- Wake-On-LAN Option -->
+      <div class="flex items-center justify-between pt-2 border-t border-border-custom">
+        <div>
+          <p class="text-xs font-semibold text-white">Power On (Wake-on-LAN)</p>
+          <p class="text-[11px] text-neutral-500">Sends WOL packet via relay</p>
+        </div>
+        <button onclick="handleCommand('power_on')" class="px-3 py-1.5 rounded-lg bg-bg-button border border-border-custom text-xs font-medium text-neutral-200 hover:text-white">
+          Turn ON
+        </button>
+      </div>
+
+      <!-- Disconnect & Reset Button -->
+      <div class="pt-3 border-t border-border-custom flex gap-2">
+        <button onclick="disconnectTV()" class="flex-1 h-10 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs font-semibold hover:bg-danger/20 transition">
+          Disconnect TV
+        </button>
+        <a href="../index.html" class="flex-1 h-10 rounded-xl bg-bg-button border border-border-custom text-neutral-300 text-xs font-semibold flex items-center justify-center hover:text-white">
+          Landing Page
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- Toast Notification Bar (Fixed Floating at Top) -->
+  <!-- ======================================================== -->
+  <div id="toast-notification" class="fixed top-14 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-neutral-900/90 border border-border-custom text-xs font-medium text-neutral-200 shadow-xl opacity-0 pointer-events-none transition-opacity duration-200 flex items-center gap-2">
+    <span id="toast-dot" class="w-2 h-2 rounded-full bg-accent"></span>
+    <span id="toast-text">Message</span>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- Application Logic & Hardware Driver Integration -->
+  <!-- ======================================================== -->
+  <script>
+    // --- State Storage & Configuration ---
+    const STORAGE_KEY = 'tv_remote_mcp_config';
+    let appConfig = {
+      ip: '',
+      brand: 'lg',
+      name: 'Smart TV',
+      relayUrl: 'http://localhost:7070',
+      connected: false
+    };
+
+    let isRelayAlive = false;
+    let repeatInterval = null;
+    let repeatTimeout = null;
+    let isPlaying = false;
+
+    // --- Initialization on Load ---
+    document.addEventListener('DOMContentLoaded', () => {
+      loadSavedConfig();
+      initLucide();
+      initDpadInteractions();
+      checkRelayHealth();
+
+      // Show setup modal if no TV configured yet
+      if (!appConfig.ip) {
+        openSetupModal();
+      } else {
+        updateUIState();
+      }
+    });
+
+    function initLucide() {
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    }
+
+    function loadSavedConfig() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          appConfig = { ...appConfig, ...JSON.parse(saved) };
+        }
+      } catch (err) {
+        console.warn('Could not read storage:', err);
+      }
+      // Auto-detect default relay URL based on browser location if opened on LAN
+      if (location.hostname && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        if (appConfig.relayUrl === 'http://localhost:7070' && !location.hostname.includes('github.io')) {
+          appConfig.relayUrl = `http://${location.hostname}:7070`;
+        }
+      }
+    }
+
+    function persistConfig() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appConfig));
+      } catch (err) {
+        console.warn('Storage save failed:', err);
+      }
+    }
+
+    function updateUIState() {
+      const tvName = document.getElementById('tv-name-display');
+      const tvSub = document.getElementById('tv-status-subtitle');
+      const ind = document.getElementById('status-indicator');
+      const badge = document.getElementById('active-brand-badge');
+
+      if (appConfig.ip) {
+        tvName.textContent = appConfig.name || `${appConfig.brand.toUpperCase()} TV`;
+        tvSub.textContent = `${appConfig.brand.toUpperCase()} · ${appConfig.ip}`;
+        badge.textContent = appConfig.brand;
+        ind.className = 'w-2.5 h-2.5 rounded-full bg-success shrink-0';
+      } else {
+        tvName.textContent = 'Tap to Connect TV';
+        tvSub.textContent = 'Not connected';
+        badge.textContent = 'TV';
+        ind.className = 'w-2.5 h-2.5 rounded-full bg-danger animate-pulse shrink-0';
+      }
+
+      const settingsIp = document.getElementById('settings-current-ip');
+      const settingsBrand = document.getElementById('settings-current-brand');
+      if (settingsIp) settingsIp.textContent = appConfig.ip || 'None';
+      if (settingsBrand) settingsBrand.textContent = appConfig.brand || 'None';
+    }
+
+    // --- Relay Health Check ---
+    async function checkRelayHealth() {
+      const relayDot = document.getElementById('relay-dot');
+      const relayLabel = document.getElementById('relay-label');
+      const setupDot = document.getElementById('setup-relay-dot');
+      const setupText = document.getElementById('setup-relay-text');
+
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 2000);
+        const res = await fetch(`${appConfig.relayUrl}/api/health`, { signal: controller.signal });
+        clearTimeout(tid);
+
+        if (res.ok) {
+          isRelayAlive = true;
+          if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-success';
+          if (relayLabel) relayLabel.textContent = 'Relay OK';
+          if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-success mt-1 shrink-0';
+          if (setupText) setupText.innerHTML = '<span class="text-success font-semibold">Relay connected</span> on ' + appConfig.relayUrl;
+          return true;
+        }
+      } catch (err) {
+        // Relay unavailable
+      }
+
+      isRelayAlive = false;
+      if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-warning';
+      if (relayLabel) relayLabel.textContent = 'No Relay';
+      if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-warning mt-1 shrink-0';
+      if (setupText) setupText.innerHTML = '<span class="text-warning font-semibold">Local relay not detected</span> (Roku works directly; other brands need relay.py)';
+      return false;
+    }
+
+    // --- Haptic Feedback ---
+    function triggerHaptic(duration = 15) {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate(duration);
+        } catch (_) {}
+      }
+    }
+
+    // --- Toast Alerts ---
+    let toastTimeout = null;
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast-notification');
+      const text = document.getElementById('toast-text');
+      const dot = document.getElementById('toast-dot');
+      if (!toast || !text) return;
+
+      text.textContent = message;
+      if (type === 'error') {
+        dot.className = 'w-2 h-2 rounded-full bg-danger';
+      } else if (type === 'success') {
+        dot.className = 'w-2 h-2 rounded-full bg-success';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-accent';
+      }
+
+      toast.style.opacity = '1';
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.style.opacity = '0';
+      }, 2000);
+    }
+
+    // --- Command Dispatch Engine ---
+    async function handleCommand(action, arg = null) {
+      triggerHaptic(18);
+
+      if (!appConfig.ip) {
+        showToast('Please set TV IP first', 'error');
+        openSetupModal();
+        return;
+      }
+
+      // If relay is alive, dispatch to relay API
+      if (isRelayAlive) {
+        try {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 3200);
+
+          const res = await fetch(`${appConfig.relayUrl}/api/command`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ip: appConfig.ip,
+              brand: appConfig.brand,
+              action: action,
+              arg: arg
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(tid);
+
+          const data = await res.json();
+          if (data.pairing_required) {
+            openPairingModal(data.message || 'Please approve pairing on TV screen.');
+            return;
+          }
+
+          if (!data.success) {
+            showToast(data.error || 'Command failed', 'error');
+          }
+          return;
+        } catch (err) {
+          console.warn('Relay command dispatch error:', err);
+        }
+      }
+
+      // Direct fallback for Roku ECP (no CORS headers needed on keypress)
+      if (appConfig.brand === 'roku') {
+        const rokuKeyMap = {
+          'power_off': 'PowerOff',
+          'power_on': 'PowerOn',
+          'volume_up': 'VolumeUp',
+          'volume_down': 'VolumeDown',
+          'mute': 'VolumeMute',
+          'up': 'Up',
+          'down': 'Down',
+          'left': 'Left',
+          'right': 'Right',
+          'enter': 'Select',
+          'home': 'Home',
+          'back': 'Back',
+          'menu': 'Info',
+          'play': 'Play',
+          'pause': 'Play',
+          'stop': 'Stop',
+          'rewind': 'Rev',
+          'fast_forward': 'Fwd'
+        };
+        const rKey = rokuKeyMap[action] || action;
+        try {
+          await fetch(`http://${appConfig.ip}:8060/keypress/${rKey}`, { method: 'POST', mode: 'no-cors' });
+          showToast(`Sent ${action}`, 'success');
+          return;
+        } catch (rErr) {
+          showToast('Direct Roku request failed', 'error');
+        }
+      }
+
+      // If relay failed and no direct fallback available
+      showToast(`Relay required for ${appConfig.brand.toUpperCase()}`, 'error');
+    }
+
+    // --- Hold-To-Repeat Engine for Volume/Channel ---
+    function startRepeat(action) {
+      handleCommand(action);
+      stopRepeat();
+      repeatTimeout = setTimeout(() => {
+        repeatInterval = setInterval(() => {
+          handleCommand(action);
+        }, 140);
+      }, 450);
+    }
+
+    function stopRepeat() {
+      clearTimeout(repeatTimeout);
+      clearInterval(repeatInterval);
+      repeatTimeout = null;
+      repeatInterval = null;
+    }
+
+    // --- Play / Pause Toggle State ---
+    function handlePlayPauseToggle() {
+      isPlaying = !isPlaying;
+      const icon = document.getElementById('play-pause-icon');
+      if (isPlaying) {
+        handleCommand('play');
+        if (icon) {
+          icon.setAttribute('data-lucide', 'pause');
+          icon.classList.remove('ml-0.5');
+        }
+      } else {
+        handleCommand('pause');
+        if (icon) {
+          icon.setAttribute('data-lucide', 'play');
+          icon.classList.add('ml-0.5');
+        }
+      }
+      initLucide();
+    }
+
+    // --- App Launch Handler ---
+    function handleAppLaunch(appName) {
+      handleCommand('launch_app', appName);
+      showToast(`Launching ${appName.toUpperCase()}...`);
+    }
+
+    // --- TV Input Selector ---
+    function handleSetInput(sourceName) {
+      handleCommand('set_input', sourceName);
+      showToast(`Switching to ${sourceName}...`);
+      closeInputModal();
+    }
+
+    // --- D-Pad Touch & Angle Controller ---
+    function initDpadInteractions() {
+      const dpad = document.getElementById('dpad-container');
+      if (!dpad) return;
+
+      let touchActive = false;
+
+      function resolveQuadrant(e) {
+        const rect = dpad.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const dx = clientX - centerX;
+        const dy = clientY - centerY;
+        const distance = Math.hypot(dx, dy);
+
+        // Center Deadzone (OK button area)
+        if (distance < 34) {
+          return 'center';
+        }
+
+        // Angle in degrees (-180 to 180)
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        if (angle >= -45 && angle <= 45) return 'right';
+        if (angle > 45 && angle < 135) return 'down';
+        if (angle >= 135 || angle <= -135) return 'left';
+        if (angle < -45 && angle > -135) return 'up';
+        return null;
+      }
+
+      function highlightZone(dir) {
+        ['up', 'down', 'left', 'right'].forEach(d => {
+          const el = document.getElementById(`dpad-zone-${d}`);
+          if (el) el.classList.toggle('active', d === dir);
+        });
+      }
+
+      dpad.addEventListener('touchstart', (e) => {
+        touchActive = true;
+        const q = resolveQuadrant(e);
+        if (q && q !== 'center') {
+          highlightZone(q);
+          handleCommand(q);
+        }
+      }, { passive: true });
+
+      dpad.addEventListener('touchend', () => {
+        touchActive = false;
+        highlightZone(null);
+      });
+    }
+
+    // --- Virtual Keyboard Logic ---
+    function openKeyboardModal() {
+      document.getElementById('modal-keyboard').classList.remove('hidden');
+      const preview = document.getElementById('keyboard-input-preview');
+      if (preview) {
+        preview.value = '';
+        setTimeout(() => preview.focus(), 100);
+      }
+    }
+
+    function closeKeyboardModal() {
+      document.getElementById('modal-keyboard').classList.add('hidden');
+    }
+
+    function sendChar(char) {
+      triggerHaptic(12);
+      const preview = document.getElementById('keyboard-input-preview');
+      if (preview) preview.value += char;
+      handleCommand('send_key', char);
+    }
+
+    function handleKeyboardAction(act) {
+      triggerHaptic(15);
+      const preview = document.getElementById('keyboard-input-preview');
+      if (act === 'backspace') {
+        if (preview && preview.value.length > 0) {
+          preview.value = preview.value.slice(0, -1);
+        }
+        handleCommand('send_key', 'backspace');
+      } else if (act === 'enter') {
+        handleCommand('enter');
+        closeKeyboardModal();
+      }
+    }
+
+    function sendKeyboardString() {
+      const preview = document.getElementById('keyboard-input-preview');
+      if (!preview || !preview.value) return;
+      const str = preview.value;
+      for (let i = 0; i < str.length; i++) {
+        setTimeout(() => {
+          handleCommand('send_key', str[i]);
+        }, i * 75);
+      }
+      showToast('Sent text to TV', 'success');
+      closeKeyboardModal();
+    }
+
+    // --- Input Modal ---
+    function openInputModal() {
+      document.getElementById('modal-input').classList.remove('hidden');
+    }
+
+    function closeInputModal() {
+      document.getElementById('modal-input').classList.add('hidden');
+    }
+
+    // --- Setup Modal & Discovery ---
+    function openSetupModal() {
+      const modal = document.getElementById('modal-setup');
+      const ipInput = document.getElementById('input-tv-ip');
+      if (ipInput) ipInput.value = appConfig.ip || '';
+      selectBrandOption(appConfig.brand || 'lg');
+      checkRelayHealth();
+      modal.classList.remove('hidden');
+      initLucide();
+    }
+
+    function closeSetupModal() {
+      document.getElementById('modal-setup').classList.add('hidden');
+    }
+
+    function selectBrandOption(b) {
+      appConfig.brand = b;
+      document.querySelectorAll('.brand-opt-btn').forEach(btn => {
+        if (btn.getAttribute('data-brand') === b) {
+          btn.className = 'brand-opt-btn h-10 rounded-xl bg-accent text-white border border-blue-400 font-semibold text-xs shadow-md';
+        } else {
+          btn.className = 'brand-opt-btn h-10 rounded-xl bg-bg-button border border-border-custom text-xs font-medium text-neutral-300 hover:border-neutral-500';
+        }
+      });
+    }
+
+    async function scanNetworkDevices() {
+      const btn = document.getElementById('btn-scan-lan');
+      const listContainer = document.getElementById('discovered-list-container');
+      const list = document.getElementById('discovered-devices-list');
+      if (!btn || !list) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Scanning...';
+      initLucide();
+
+      try {
+        const res = await fetch(`${appConfig.relayUrl}/api/discover`);
+        const data = await res.json();
+        list.innerHTML = '';
+
+        if (data.devices && data.devices.length > 0) {
+          listContainer.classList.remove('hidden');
+          data.devices.forEach(dev => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'w-full px-3 py-2 rounded-lg bg-[#0e0e0e] border border-border-custom hover:border-accent text-left flex items-center justify-between text-xs';
+            item.innerHTML = `
+              <div class="flex flex-col">
+                <span class="font-semibold text-white">${dev.name || dev.brand}</span>
+                <span class="font-mono text-[10px] text-neutral-400">${dev.ip}:${dev.port}</span>
+              </div>
+              <span class="text-[10px] text-accent font-semibold uppercase">${dev.brand}</span>
+            `;
+            item.onclick = () => {
+              document.getElementById('input-tv-ip').value = dev.ip;
+              selectBrandOption(dev.brand);
+              appConfig.name = dev.name;
+              showToast(`Selected ${dev.name}`);
+            };
+            list.appendChild(item);
+          });
+        } else {
+          listContainer.classList.remove('hidden');
+          list.innerHTML = '<p class="text-xs text-neutral-500 italic p-2">No TV discovered automatically. Enter IP manually.</p>';
+        }
+      } catch (err) {
+        showToast('Relay required for network scan', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="scan" class="w-3.5 h-3.5"></i> Scan';
+        initLucide();
+      }
+    }
+
+    async function saveAndConnectTV() {
+      const ipInput = document.getElementById('input-tv-ip');
+      const ipVal = ipInput ? ipInput.value.trim() : '';
+
+      if (!ipVal) {
+        showToast('Please enter a valid IP address', 'error');
+        return;
+      }
+
+      appConfig.ip = ipVal;
+      persistConfig();
+      updateUIState();
+      closeSetupModal();
+      showToast(`Connected to ${appConfig.brand.toUpperCase()} (${ipVal})`, 'success');
+
+      // Initiate pairing handshake check if needed
+      if (isRelayAlive && (appConfig.brand === 'lg' || appConfig.brand === 'samsung')) {
+        try {
+          const res = await fetch(`${appConfig.relayUrl}/api/pair`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: appConfig.ip, brand: appConfig.brand })
+          });
+          const pairData = await res.json();
+          if (pairData.status === 'pairing' || pairData.pairing_required) {
+            openPairingModal(pairData.message);
+          }
+        } catch (_) {}
+      }
+    }
+
+    // --- Pairing Modal Prompt ---
+    function openPairingModal(msg) {
+      const modal = document.getElementById('modal-pairing');
+      const text = document.getElementById('pairing-message-text');
+      if (text && msg) text.textContent = msg;
+      modal.classList.remove('hidden');
+      initLucide();
+    }
+
+    function closePairingModal() {
+      document.getElementById('modal-pairing').classList.add('hidden');
+    }
+
+    async function completePairingCheck() {
+      closePairingModal();
+      showToast('Pairing confirmed', 'success');
+      handleCommand('volume_up');
+    }
+
+    // --- Settings Modal ---
+    function openSettingsModal() {
+      document.getElementById('settings-relay-url').value = appConfig.relayUrl;
+      updateUIState();
+      document.getElementById('modal-settings').classList.remove('hidden');
+      initLucide();
+    }
+
+    function closeSettingsModal() {
+      const rUrl = document.getElementById('settings-relay-url').value.trim();
+      if (rUrl) {
+        appConfig.relayUrl = rUrl;
+        persistConfig();
+      }
+      document.getElementById('modal-settings').classList.add('hidden');
+    }
+
+    async function testRelayConnection() {
+      const rUrl = document.getElementById('settings-relay-url').value.trim();
+      if (rUrl) appConfig.relayUrl = rUrl;
+      const ok = await checkRelayHealth();
+      if (ok) {
+        showToast('Relay server online!', 'success');
+      } else {
+        showToast('Relay not responding', 'error');
+      }
+    }
+
+    function toggleRelayStatusPrompt() {
+      openSettingsModal();
+    }
+
+    function disconnectTV() {
+      appConfig.ip = '';
+      persistConfig();
+      updateUIState();
+      closeSettingsModal();
+      showToast('Disconnected TV');
+      openSetupModal();
+    }
+  </script>
+</body>
+</html>
