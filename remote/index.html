@@ -574,7 +574,7 @@
       <!-- TV MAC Address for Wake-on-LAN -->
       <div class="space-y-1 pt-2 border-t border-border-custom">
         <label class="text-[11px] font-medium text-neutral-400">TV MAC Address (for Wake-on-LAN)</label>
-        <input id="settings-tv-mac" type="text" placeholder="e.g. 8c:77:79:67:e6:28" class="w-full bg-[#1e1e1e] border border-border-custom rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-accent font-mono">
+        <input id="settings-tv-mac" type="text" placeholder="e.g. AA:BB:CC:DD:EE:FF" class="w-full bg-[#1e1e1e] border border-border-custom rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-accent font-mono">
       </div>
 
       <!-- Wake-On-LAN Option -->
@@ -620,7 +620,7 @@
       brand: 'lg',
       name: 'Smart TV',
       relayUrl: 'http://localhost:7070',
-      mac: '8c:77:79:67:e6:28',
+      mac: '',
       isTvOn: true,
       connected: false
     };
@@ -704,9 +704,6 @@
         console.warn('Could not read storage:', err);
       }
 
-      if (!appConfig.mac && appConfig.ip === '192.168.1.11') {
-        appConfig.mac = '8c:77:79:67:e6:28';
-      }
       if (appConfig.isTvOn === undefined) {
         appConfig.isTvOn = true;
       }
