@@ -199,7 +199,7 @@
     
     <!-- Row 1: Power & Mute Quick Actions -->
     <section class="flex items-center justify-between px-3 pt-1 shrink-0" aria-label="Quick Actions">
-      <button id="btn-power" onclick="handleCommand('power_off')" class="w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-danger/10 border border-danger/30 text-danger flex items-center justify-center shadow-lg active:scale-90" aria-label="Power Off">
+      <button id="btn-power" onclick="handlePowerToggle()" class="w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-danger/10 border border-danger/30 text-danger flex items-center justify-center shadow-lg active:scale-90 transition" aria-label="Turn TV Off" title="Power Toggle">
         <i data-lucide="power" class="w-5 h-5"></i>
       </button>
 
@@ -571,14 +571,20 @@
         </div>
       </div>
 
+      <!-- TV MAC Address for Wake-on-LAN -->
+      <div class="space-y-1 pt-2 border-t border-border-custom">
+        <label class="text-[11px] font-medium text-neutral-400">TV MAC Address (for Wake-on-LAN)</label>
+        <input id="settings-tv-mac" type="text" placeholder="e.g. 8c:77:79:67:e6:28" class="w-full bg-[#1e1e1e] border border-border-custom rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-accent font-mono">
+      </div>
+
       <!-- Wake-On-LAN Option -->
       <div class="flex items-center justify-between pt-2 border-t border-border-custom">
         <div>
           <p class="text-xs font-semibold text-white">Power On (Wake-on-LAN)</p>
-          <p class="text-[11px] text-neutral-500">Sends WOL packet via relay</p>
+          <p class="text-[11px] text-neutral-500">Sends magic packet burst via relay</p>
         </div>
-        <button onclick="handleCommand('power_on')" class="px-3 py-1.5 rounded-lg bg-bg-button border border-border-custom text-xs font-medium text-neutral-200 hover:text-white">
-          Turn ON
+        <button onclick="handleCommand('power_on')" class="px-3 py-1.5 rounded-lg bg-success/20 border border-success/40 text-xs font-medium text-success hover:bg-success/30">
+          Turn ON (WoL)
         </button>
       </div>
 
@@ -614,6 +620,8 @@
       brand: 'lg',
       name: 'Smart TV',
       relayUrl: 'http://localhost:7070',
+      mac: '8c:77:79:67:e6:28',
+      isTvOn: true,
       connected: false
     };
 
@@ -622,12 +630,51 @@
     let repeatTimeout = null;
     let isPlaying = false;
 
+    // --- Smart Power Button Toggle & Indicator ---
+    async function handlePowerToggle() {
+      triggerHaptic(25);
+      if (!appConfig.ip) {
+        showToast('Please set TV IP first', 'error');
+        openSetupModal();
+        return;
+      }
+
+      if (!appConfig.isTvOn) {
+        showToast('Sending Wake-on-LAN to wake TV...', 'info');
+        await handleCommand('power_on');
+        appConfig.isTvOn = true;
+        persistConfig();
+        updatePowerButtonUI(true);
+      } else {
+        showToast('Turning TV off...', 'info');
+        await handleCommand('power_off');
+        appConfig.isTvOn = false;
+        persistConfig();
+        updatePowerButtonUI(false);
+      }
+    }
+
+    function updatePowerButtonUI(isOn) {
+      const btn = document.getElementById('btn-power');
+      if (!btn) return;
+      if (isOn) {
+        btn.className = 'w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-danger/10 border border-danger/30 text-danger flex items-center justify-center shadow-lg active:scale-90 transition';
+        btn.setAttribute('aria-label', 'Turn TV Off');
+        btn.setAttribute('title', 'Turn TV Off');
+      } else {
+        btn.className = 'w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-success/20 border border-success/40 text-success flex items-center justify-center shadow-lg active:scale-90 animate-pulse transition';
+        btn.setAttribute('aria-label', 'Turn TV On (Wake-on-LAN)');
+        btn.setAttribute('title', 'Turn TV On (Wake-on-LAN)');
+      }
+    }
+
     // --- Initialization on Load ---
     document.addEventListener('DOMContentLoaded', () => {
       loadSavedConfig();
       initLucide();
       initDpadInteractions();
       checkRelayHealth();
+      updatePowerButtonUI(appConfig.isTvOn);
 
       // Periodic check & re-check when returning to the tab
       window.addEventListener('focus', checkRelayHealth);
@@ -655,6 +702,13 @@
         }
       } catch (err) {
         console.warn('Could not read storage:', err);
+      }
+
+      if (!appConfig.mac && appConfig.ip === '192.168.1.11') {
+        appConfig.mac = '8c:77:79:67:e6:28';
+      }
+      if (appConfig.isTvOn === undefined) {
+        appConfig.isTvOn = true;
       }
       
       // If loaded directly from the local relay (port 7070), use current origin
@@ -809,7 +863,7 @@
       if (appConfig.relayUrl) {
         try {
           const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 3200);
+          const tid = setTimeout(() => controller.abort(), 5000);
 
           const res = await fetch(`${appConfig.relayUrl}/api/command`, {
             method: 'POST',
@@ -818,7 +872,8 @@
               ip: appConfig.ip,
               brand: appConfig.brand,
               action: action,
-              arg: arg
+              arg: arg,
+              mac: appConfig.mac
             }),
             signal: controller.signal
           });
@@ -833,7 +888,35 @@
           }
 
           if (!data.success) {
+            if (data.error && (data.error.includes('offline') || data.error.includes('unreachable') || data.error.includes('closed'))) {
+              appConfig.isTvOn = false;
+              persistConfig();
+              updatePowerButtonUI(false);
+            }
             showToast(data.error || 'Command failed', 'error');
+            return;
+          }
+
+          if (action === 'power_on') {
+            appConfig.isTvOn = true;
+            persistConfig();
+            updatePowerButtonUI(true);
+            showToast('Wake-on-LAN magic packet sent!', 'success');
+            return;
+          }
+          if (action === 'power_off') {
+            appConfig.isTvOn = false;
+            persistConfig();
+            updatePowerButtonUI(false);
+            showToast('TV turned off', 'info');
+            return;
+          }
+
+          // Command succeeded while TV is active
+          if (!appConfig.isTvOn) {
+            appConfig.isTvOn = true;
+            persistConfig();
+            updatePowerButtonUI(true);
           }
           return;
         } catch (err) {
@@ -1170,6 +1253,8 @@
     // --- Settings Modal ---
     function openSettingsModal() {
       document.getElementById('settings-relay-url').value = appConfig.relayUrl;
+      const macInput = document.getElementById('settings-tv-mac');
+      if (macInput) macInput.value = appConfig.mac || '';
       updateUIState();
       document.getElementById('modal-settings').classList.remove('hidden');
       initLucide();
@@ -1179,8 +1264,12 @@
       const rUrl = document.getElementById('settings-relay-url').value.trim();
       if (rUrl) {
         appConfig.relayUrl = rUrl;
-        persistConfig();
       }
+      const macInput = document.getElementById('settings-tv-mac');
+      if (macInput && macInput.value.trim()) {
+        appConfig.mac = macInput.value.trim().toLowerCase();
+      }
+      persistConfig();
       document.getElementById('modal-settings').classList.add('hidden');
     }
 

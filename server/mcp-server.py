@@ -65,7 +65,41 @@ def get_lg_client(host: str) -> Optional[Any]:
     return lg_client_cache.get(host)
 
 
+def send_wol(ip: str, mac: Optional[str] = None) -> bool:
+    """Send Wake-on-LAN magic packet burst."""
+    try:
+        target_mac = mac
+        if not target_mac:
+            tokens_file = ROOT_DIR / "tv-tokens" / "tokens.json"
+            if tokens_file.exists():
+                with open(tokens_file, "r", encoding="utf-8") as f:
+                    tok = json.load(f)
+                    target_mac = tok.get(ip, {}).get("mac")
+        if not target_mac:
+            cmd = ["arp", "-a", ip] if sys.platform.startswith("win") else ["arp", "-n", ip]
+            out = subprocess.check_output(cmd, text=True, timeout=1.0)
+            m = re.search(r"([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})", out)
+            if m:
+                target_mac = m.group(0)
+        if not target_mac:
+            return False
+        clean = target_mac.replace(":", "").replace("-", "")
+        pkt = b"\xff" * 6 + bytes.fromhex(clean) * 16
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            for _ in range(5):
+                s.sendto(pkt, ("255.255.255.255", 9))
+                s.sendto(pkt, (ip, 9))
+                time.sleep(0.02)
+        return True
+    except Exception:
+        return False
+
+
 def lg_action(host: str, action: str, arg: Optional[str] = None) -> Dict[str, Any]:
+    if action == "power_on":
+        ok = send_wol(host)
+        return {"success": ok, "message": "Wake-on-LAN packet sent" if ok else "MAC address not found for WoL"}
     client = get_lg_client(host)
     if not client:
         return {"success": False, "error": "Could not connect to LG TV"}

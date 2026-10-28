@@ -125,22 +125,81 @@ def get_local_ip() -> str:
         return "127.0.0.1"
 
 
-def send_wol(ip: str) -> bool:
-    """Send Wake-on-LAN magic packet using ARP cache lookup for MAC."""
+def get_subnet_broadcast(ip: str) -> str:
+    """Derive subnet broadcast IP (e.g. 192.168.1.255) from target IP."""
+    try:
+        parts = ip.split(".")
+        if len(parts) == 4:
+            return f"{parts[0]}.{parts[1]}.{parts[2]}.255"
+    except Exception:
+        pass
+    return "255.255.255.255"
+
+
+def lookup_mac(ip: str) -> Optional[str]:
+    """Look up MAC address from pairing tokens or system ARP table."""
+    token_entry = PAIRING_TOKENS.get(ip, {})
+    if isinstance(token_entry, dict) and token_entry.get("mac"):
+        return token_entry["mac"]
     try:
         cmd = ["arp", "-a", ip] if sys.platform.startswith("win") else ["arp", "-n", ip]
         out = subprocess.check_output(cmd, text=True, timeout=1.0)
         m = re.search(r"([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})", out)
-        if not m:
-            return False
-        mac_bytes = bytes.fromhex(m.group(0).replace(":", "").replace("-", ""))
+        if m:
+            mac = m.group(0).replace("-", ":").lower()
+            if ip in PAIRING_TOKENS and isinstance(PAIRING_TOKENS[ip], dict):
+                PAIRING_TOKENS[ip]["mac"] = mac
+                save_pairing_tokens()
+            return mac
+    except Exception:
+        pass
+    return None
+
+
+def send_wol(ip: str, mac: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Send Wake-on-LAN magic packet burst using stored MAC or ARP cache lookup."""
+    target_mac = mac or lookup_mac(ip)
+    if not target_mac:
+        return False, f"MAC address not found for {ip}. Turn on TV once or provide MAC in settings."
+    try:
+        clean_mac = target_mac.replace(":", "").replace("-", "")
+        if len(clean_mac) != 12:
+            return False, f"Invalid MAC address: {target_mac}"
+        mac_bytes = bytes.fromhex(clean_mac)
         packet = b"\xff" * 6 + mac_bytes * 16
+
+        broadcast_ip = get_subnet_broadcast(ip)
+        targets = [
+            ("255.255.255.255", 9), ("255.255.255.255", 7),
+            (broadcast_ip, 9), (broadcast_ip, 7),
+            (ip, 9), (ip, 7)
+        ]
+
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            s.sendto(packet, ("255.255.255.255", 9))
-            s.sendto(packet, (ip, 9))
-        return True
-    except Exception:
+            for _ in range(5):
+                for dest_ip, dest_port in targets:
+                    try:
+                        s.sendto(packet, (dest_ip, dest_port))
+                    except Exception:
+                        pass
+                time.sleep(0.025)
+
+        if ip in PAIRING_TOKENS and isinstance(PAIRING_TOKENS[ip], dict) and not PAIRING_TOKENS[ip].get("mac"):
+            PAIRING_TOKENS[ip]["mac"] = target_mac.lower()
+            save_pairing_tokens()
+
+        return True, f"Wake-on-LAN packet sent to {target_mac}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def is_port_open(ip: str, port: int, timeout: float = 1.0) -> bool:
+    """Fast non-blocking TCP reachability probe."""
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except (socket.timeout, OSError):
         return False
 
 
@@ -203,26 +262,51 @@ class LGWebOSHandler:
 
     @staticmethod
     def _create_connected_client(ip: str) -> Any:
+        # Fast non-blocking port check before attempting slow WebSocket handshakes
+        port_3001 = is_port_open(ip, 3001, timeout=1.0)
+        port_3000 = is_port_open(ip, 3000, timeout=0.8) if not port_3001 else False
+
+        if not port_3001 and not port_3000:
+            raise ConnectionRefusedError(
+                f"TV at {ip} is offline (ports 3000/3001 unreachable). Turn on TV or send Wake-on-LAN."
+            )
+
         # Try secure=True first (WebOS 4.0+ uses SSL on port 3001), fallback to secure=False
-        try:
-            c = WebOSClient(ip, secure=True)
-            c.connect()
-            return c
-        except Exception:
-            c = WebOSClient(ip, secure=False)
-            c.connect()
-            return c
+        if port_3001:
+            try:
+                c = WebOSClient(ip, secure=True)
+                c.connect()
+                return c
+            except Exception:
+                pass
+
+        c = WebOSClient(ip, secure=False)
+        c.connect()
+        return c
 
     @classmethod
     def get_client(cls, ip: str) -> Any:
         cache_key = f"lg:{ip}"
         with CACHE_LOCK:
             if cache_key in CONNECTION_CACHE:
-                return CONNECTION_CACHE[cache_key]
+                bundle = CONNECTION_CACHE[cache_key]
+                client = bundle.get("client")
+                ws = getattr(client, "ws", None)
+                # Verify WebSocket connection is still open and responsive
+                if ws and not getattr(ws, "terminated", False) and getattr(ws, "sock", None):
+                    return bundle
+                CONNECTION_CACHE.pop(cache_key, None)
+
         if not HAS_PYWEBOSTV:
             raise RuntimeError("pywebostv not installed. Run 'pip install pywebostv'")
 
         store = PAIRING_TOKENS.setdefault(ip, {})
+        if not store.get("mac"):
+            mac = lookup_mac(ip)
+            if mac:
+                store["mac"] = mac
+                save_pairing_tokens()
+
         client = cls._create_connected_client(ip)
         for status in client.register(store):
             if status == WebOSClient.REGISTERED:
@@ -265,9 +349,11 @@ class LGWebOSHandler:
             return {"status": "error", "message": str(exc)}
 
     @classmethod
-    def execute(cls, ip: str, action: str, arg: Any = None) -> Tuple[bool, Any, Optional[str]]:
+    def execute(cls, ip: str, action: str, arg: Any = None, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
         if action == "power_on":
-            return send_wol(ip), None, None
+            target_mac = mac or (arg if isinstance(arg, str) and (":" in arg or "-" in arg) else None)
+            ok, msg = send_wol(ip, mac=target_mac)
+            return ok, msg, None if ok else msg
         try:
             b = cls.get_client(ip)
             if not b["mouse"] and action in ("up", "down", "left", "right", "enter", "back", "home", "menu"):
@@ -279,9 +365,11 @@ class LGWebOSHandler:
 
             # Actions
             if action == "power_off":
-                b["system"].power_off()
-                with CACHE_LOCK:
-                    CONNECTION_CACHE.pop(f"lg:{ip}", None)
+                try:
+                    b["system"].power_off()
+                finally:
+                    with CACHE_LOCK:
+                        CONNECTION_CACHE.pop(f"lg:{ip}", None)
             elif action == "volume_up": b["media"].volume_up()
             elif action == "volume_down": b["media"].volume_down()
             elif action == "volume_set": b["media"].set_volume(int(arg or 10))
@@ -366,8 +454,10 @@ class SamsungHandler:
             return {"status": "error", "message": str(exc)}
 
     @classmethod
-    def execute(cls, ip: str, action: str, arg: Any = None) -> Tuple[bool, Any, Optional[str]]:
-        if action == "power_on": send_wol(ip)
+    def execute(cls, ip: str, action: str, arg: Any = None, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
+        if action == "power_on":
+            ok, msg = send_wol(ip, mac=mac)
+            return ok, msg, None if ok else msg
         if action == "list_apps":
             try:
                 _, body = http_request("GET", f"http://{ip}:8001/api/v2/applications")
@@ -407,9 +497,10 @@ class RokuHandler:
         return {"status": "paired", "message": "No pairing required"}
 
     @classmethod
-    def execute(cls, ip: str, action: str, arg: Any = None) -> Tuple[bool, Any, Optional[str]]:
+    def execute(cls, ip: str, action: str, arg: Any = None, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
         base = f"http://{ip}:8060"
-        if action == "power_on": send_wol(ip)
+        if action == "power_on":
+            send_wol(ip, mac=mac)
         if action == "list_apps":
             try:
                 _, body = http_request("GET", f"{base}/query/apps")
@@ -474,9 +565,10 @@ class AndroidADBHandler:
             return {"status": "error", "message": str(exc)}
 
     @classmethod
-    def execute(cls, ip: str, action: str, arg: Any = None) -> Tuple[bool, Any, Optional[str]]:
+    def execute(cls, ip: str, action: str, arg: Any = None, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
         dev = f"{ip}:5555"
-        if action == "power_on": send_wol(ip)
+        if action == "power_on":
+            send_wol(ip, mac=mac)
         try:
             cls._adb(["connect", dev])
             if action == "volume_set":
@@ -525,8 +617,10 @@ class OtherBrandsHandler:
     }
 
     @classmethod
-    def execute_vizio(cls, ip: str, action: str) -> Tuple[bool, Any, Optional[str]]:
-        if action == "power_on": send_wol(ip)
+    def execute_vizio(cls, ip: str, action: str, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
+        if action == "power_on":
+            ok, msg = send_wol(ip, mac=mac)
+            return ok, msg, None if ok else msg
         target = cls.VIZIO_KEYS.get(action)
         if not target: return False, None, f"Unsupported action: {action}"
         body = json.dumps({"KEYLIST": [{"CODESET": target[0], "CODE": target[1], "ACTION": "KEYPRESS"}]})
@@ -539,8 +633,10 @@ class OtherBrandsHandler:
         return False, None, "Vizio connection failed"
 
     @classmethod
-    def execute_sony(cls, ip: str, action: str) -> Tuple[bool, Any, Optional[str]]:
-        if action == "power_on": send_wol(ip)
+    def execute_sony(cls, ip: str, action: str, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
+        if action == "power_on":
+            ok, msg = send_wol(ip, mac=mac)
+            return ok, msg, None if ok else msg
         code = cls.SONY_IRCC.get(action)
         if not code: return False, None, f"Unsupported action: {action}"
         soap = (
@@ -554,8 +650,10 @@ class OtherBrandsHandler:
             return False, None, str(exc)
 
     @classmethod
-    def execute_philips(cls, ip: str, action: str) -> Tuple[bool, Any, Optional[str]]:
-        if action == "power_on": send_wol(ip)
+    def execute_philips(cls, ip: str, action: str, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
+        if action == "power_on":
+            ok, msg = send_wol(ip, mac=mac)
+            return ok, msg, None if ok else msg
         key = cls.PHILIPS_KEYS.get(action)
         if not key: return False, None, f"Unsupported action: {action}"
         try:
@@ -581,20 +679,20 @@ def normalize_brand(brand: str) -> str:
     return b
 
 
-def execute_command(ip: str, brand: str, action: str, arg: Any = None) -> Tuple[bool, Any, Optional[str]]:
+def execute_command(ip: str, brand: str, action: str, arg: Any = None, mac: Optional[str] = None) -> Tuple[bool, Any, Optional[str]]:
     b = normalize_brand(brand)
     act = action.lower().strip()
-    if b == "lg": return LGWebOSHandler.execute(ip, act, arg)
-    if b == "samsung": return SamsungHandler.execute(ip, act, arg)
-    if b == "roku": return RokuHandler.execute(ip, act, arg)
-    if b == "android": return AndroidADBHandler.execute(ip, act, arg)
-    if b == "vizio": return OtherBrandsHandler.execute_vizio(ip, act)
-    if b == "sony": return OtherBrandsHandler.execute_sony(ip, act)
-    if b == "philips": return OtherBrandsHandler.execute_philips(ip, act)
+    if b == "lg": return LGWebOSHandler.execute(ip, act, arg, mac=mac)
+    if b == "samsung": return SamsungHandler.execute(ip, act, arg, mac=mac)
+    if b == "roku": return RokuHandler.execute(ip, act, arg, mac=mac)
+    if b == "android": return AndroidADBHandler.execute(ip, act, arg, mac=mac)
+    if b == "vizio": return OtherBrandsHandler.execute_vizio(ip, act, mac=mac)
+    if b == "sony": return OtherBrandsHandler.execute_sony(ip, act, mac=mac)
+    if b == "philips": return OtherBrandsHandler.execute_philips(ip, act, mac=mac)
     # Generic fallback
-    success, res, err = AndroidADBHandler.execute(ip, act, arg)
+    success, res, err = AndroidADBHandler.execute(ip, act, arg, mac=mac)
     if success: return True, res, None
-    return RokuHandler.execute(ip, act, arg)
+    return RokuHandler.execute(ip, act, arg, mac=mac)
 
 
 def execute_pair(ip: str, brand: str) -> Dict[str, Any]:
@@ -614,10 +712,10 @@ def discover_devices() -> List[Dict[str, Any]]:
     prefix = f"{parts[0]}.{parts[1]}.{parts[2]}."
 
     candidate_ips = [f"{prefix}{i}" for i in range(1, 31)] + [f"{prefix}{i}" for i in range(100, 151)]
-    ports = [(3000, "lg", "LG WebOS TV"), (8001, "samsung", "Samsung Tizen TV"),
-             (8060, "roku", "Roku TV"), (5555, "android", "Android TV / Fire TV"),
-             (7345, "vizio", "Vizio SmartCast TV"), (80, "sony", "Sony Bravia TV"),
-             (1925, "philips", "Philips Smart TV")]
+    ports = [(3001, "lg", "LG WebOS TV (SSL)"), (3000, "lg", "LG WebOS TV"),
+             (8001, "samsung", "Samsung Tizen TV"), (8060, "roku", "Roku TV"),
+             (5555, "android", "Android TV / Fire TV"), (7345, "vizio", "Vizio SmartCast TV"),
+             (80, "sony", "Sony Bravia TV"), (1925, "philips", "Philips Smart TV")]
 
     results: List[Dict[str, Any]] = []
     seen: set = set()
@@ -640,7 +738,8 @@ def discover_devices() -> List[Dict[str, Any]]:
                 if elem is not None and elem.text: name = elem.text.strip()
             except Exception:
                 pass
-        return {"ip": ip, "port": port, "brand": brand, "name": name}
+        mac = lookup_mac(ip)
+        return {"ip": ip, "port": port, "brand": brand, "name": name, "mac": mac}
 
     with ThreadPoolExecutor(max_workers=50) as ex:
         futs = [ex.submit(check, ip, p, b, n) for ip in candidate_ips for p, b, n in ports]
@@ -746,15 +845,22 @@ class RelayHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/command":
             ip, brand, action, arg = data.get("ip", "").strip(), data.get("brand", "").strip(), data.get("action", "").strip(), data.get("arg")
+            mac = data.get("mac", "").strip() or None
             if not ip or not brand or not action:
                 self.send_cors_headers(200)
                 log_command(brand, ip, action, False, "Missing fields")
-                self.wfile.write(json.dumps({"success": False, "error": "Missing ip, brand, or action"}).encode("utf-8"))
+                try:
+                    self.wfile.write(json.dumps({"success": False, "error": "Missing ip, brand, or action"}).encode("utf-8"))
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, OSError):
+                    pass
                 return
-            success, res, err = execute_command(ip, brand, action, arg)
+            success, res, err = execute_command(ip, brand, action, arg, mac=mac)
             log_command(brand, ip, action, success, err)
-            self.send_cors_headers(200)
-            self.wfile.write(json.dumps({"success": success, "result": res} if success else {"success": False, "error": err or "Failed"}).encode("utf-8"))
+            try:
+                self.send_cors_headers(200)
+                self.wfile.write(json.dumps({"success": success, "result": res} if success else {"success": False, "error": err or "Failed"}).encode("utf-8"))
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, OSError):
+                pass
             return
 
         if path == "/api/pair":
