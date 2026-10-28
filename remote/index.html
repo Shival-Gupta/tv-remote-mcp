@@ -629,6 +629,10 @@
       initDpadInteractions();
       checkRelayHealth();
 
+      // Periodic check & re-check when returning to the tab
+      window.addEventListener('focus', checkRelayHealth);
+      setInterval(checkRelayHealth, 8000);
+
       // Show setup modal if no TV configured yet
       if (!appConfig.ip) {
         openSetupModal();
@@ -658,8 +662,9 @@
         appConfig.relayUrl = `http://${location.hostname}:7070`;
       } else if (/^192\.168\.\d+\.\d+$/.test(location.hostname) || /^10\.\d+\.\d+\.\d+$/.test(location.hostname)) {
         appConfig.relayUrl = `http://${location.hostname}:7070`;
-      } else if (!appConfig.relayUrl || appConfig.relayUrl.includes('projects.shivalgupta.me')) {
+      } else if (!appConfig.relayUrl || appConfig.relayUrl.includes('projects.shivalgupta.me') || appConfig.relayUrl.includes('github.io')) {
         appConfig.relayUrl = 'http://localhost:7070';
+        persistConfig();
       }
     }
 
@@ -695,13 +700,34 @@
       if (settingsBrand) settingsBrand.textContent = appConfig.brand || 'None';
     }
 
-    // --- Relay Health Check ---
-    async function checkRelayHealth() {
+    // --- Relay State UI Helper ---
+    function setRelayOnline(alive) {
+      isRelayAlive = alive;
       const relayDot = document.getElementById('relay-dot');
       const relayLabel = document.getElementById('relay-label');
       const setupDot = document.getElementById('setup-relay-dot');
       const setupText = document.getElementById('setup-relay-text');
 
+      if (alive) {
+        if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-success';
+        if (relayLabel) relayLabel.textContent = 'Relay OK';
+        if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-success mt-1 shrink-0';
+        if (setupText) setupText.innerHTML = '<span class="text-success font-semibold">Relay connected</span> on ' + appConfig.relayUrl;
+      } else {
+        if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-warning';
+        if (relayLabel) relayLabel.textContent = 'No Relay';
+        if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-warning mt-1 shrink-0';
+        if (setupText) {
+          setupText.innerHTML = `
+            <span class="text-warning font-semibold">Local relay not detected</span>
+            <span class="text-neutral-500 text-[11px] block mt-0.5">Start relay on your PC (<code class="text-neutral-300 font-mono">python server/relay.py</code>) or check Relay URL in Settings (⚙).</span>
+          `;
+        }
+      }
+    }
+
+    // --- Relay Health Check ---
+    async function checkRelayHealth() {
       try {
         const controller = new AbortController();
         const tid = setTimeout(() => controller.abort(), 2000);
@@ -709,15 +735,11 @@
         clearTimeout(tid);
 
         if (res.ok) {
-          isRelayAlive = true;
-          if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-success';
-          if (relayLabel) relayLabel.textContent = 'Relay OK';
-          if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-success mt-1 shrink-0';
-          if (setupText) setupText.innerHTML = '<span class="text-success font-semibold">Relay connected</span> on ' + appConfig.relayUrl;
+          setRelayOnline(true);
           return true;
         }
       } catch (err) {
-        // Relay unavailable
+        // Relay unavailable on primary URL
       }
 
       // Fallback check to LAN IP if localhost failed (useful when testing from phone or LAN)
@@ -730,36 +752,13 @@
           if (res.ok) {
             appConfig.relayUrl = 'http://192.168.1.12:7070';
             persistConfig();
-            isRelayAlive = true;
-            if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-success';
-            if (relayLabel) relayLabel.textContent = 'Relay OK';
-            if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-success mt-1 shrink-0';
-            if (setupText) setupText.innerHTML = '<span class="text-success font-semibold">Relay connected</span> on ' + appConfig.relayUrl;
+            setRelayOnline(true);
             return true;
           }
         } catch (_) {}
       }
 
-      isRelayAlive = false;
-      if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-warning';
-      if (relayLabel) relayLabel.textContent = 'No Relay';
-      if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-warning mt-1 shrink-0';
-      
-      if (location.protocol === 'https:') {
-        if (setupText) {
-          setupText.innerHTML = `
-            <span class="text-warning font-semibold">Browser Mixed Content Security</span><br>
-            <span class="text-neutral-400 text-[11px]">When viewing on HTTPS, browsers block local HTTP requests.</span><br>
-            <span class="text-neutral-300 text-[11px] font-medium mt-1 block">👉 Open directly via your running relay:</span>
-            <div class="mt-1 flex flex-col gap-1">
-              <a href="http://localhost:7070/remote/" class="text-accent underline font-mono text-[11px]">http://localhost:7070/remote/ (This PC)</a>
-              <a href="http://192.168.1.12:7070/remote/" class="text-accent underline font-mono text-[11px]">http://192.168.1.12:7070/remote/ (Mobile/LAN)</a>
-            </div>
-          `;
-        }
-      } else {
-        if (setupText) setupText.innerHTML = '<span class="text-warning font-semibold">Local relay not detected</span> (Roku works directly; other brands need relay.py)';
-      }
+      setRelayOnline(false);
       return false;
     }
 
@@ -806,8 +805,8 @@
         return;
       }
 
-      // If relay is alive, dispatch to relay API
-      if (isRelayAlive) {
+      // If relay is configured, dispatch to relay API
+      if (appConfig.relayUrl) {
         try {
           const controller = new AbortController();
           const tid = setTimeout(() => controller.abort(), 3200);
@@ -826,6 +825,8 @@
           clearTimeout(tid);
 
           const data = await res.json();
+          setRelayOnline(true);
+
           if (data.pairing_required) {
             openPairingModal(data.message || 'Please approve pairing on TV screen.');
             return;
@@ -837,6 +838,7 @@
           return;
         } catch (err) {
           console.warn('Relay command dispatch error:', err);
+          setRelayOnline(false);
         }
       }
 
