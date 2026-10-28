@@ -5,121 +5,66 @@
 [![Protocol: FastMCP](https://img.shields.io/badge/Protocol-FastMCP%20%7C%20JSON--RPC-green.svg)](docs/ai-setup.md)
 [![Platforms: 10+ Brands](https://img.shields.io/badge/TV%20Brands-LG%20%7C%20Samsung%20%7C%20Roku%20%7C%20Android%20%7C%20Sony-purple.svg)](docs/brands.md)
 [![Tests: 7/7 Passing](https://img.shields.io/badge/Tests-7%2F7%20Passing-brightgreen.svg)](tests/)
-[![Zero Cloud](https://img.shields.io/badge/Privacy-100%25%20Local%20LAN-emerald.svg)](#-privacy--security)
+[![Zero Cloud](https://img.shields.io/badge/Privacy-100%25%20Local%20LAN-emerald.svg)](#privacy-security)
 
-> **One URL, any smart TV, zero install + Model Context Protocol (MCP) server for AI assistants.**
+Control your smart TV from any phone or laptop browser over your local Wi-Fi — with zero app store downloads, zero logins, and zero cloud tracking. 
 
-Control any smart TV on your local network — from your phone's browser or using natural language with AI assistants (**Claude, Hermes, Antigravity, Cursor, ChatGPT, Codex**). Works with 10+ brands over Wi-Fi/LAN. Zero app store downloads, zero accounts, zero cloud dependencies.
+It also includes a local Model Context Protocol (MCP) server so your AI assistants (**Claude, Cursor, Hermes, Antigravity, Gemini**) can adjust volume, switch HDMI inputs, launch streaming apps, or turn off the TV when a task finishes.
+
+- 📱 **Open Web Remote**: [projects.shivalgupta.me/tv-remote-mcp/remote/](https://projects.shivalgupta.me/tv-remote-mcp/remote/)
+- 🌐 **Project Home**: [projects.shivalgupta.me/tv-remote-mcp/](https://projects.shivalgupta.me/tv-remote-mcp/) *(Mirror: [Shival-Gupta.github.io/tv-remote-mcp](https://Shival-Gupta.github.io/tv-remote-mcp))*
+- 📖 **Documentation**: [docs/](docs/)
+
+> 🤖 **Using an AI assistant or coding agent?**  
+> Jump to [**AI Assistant & MCP Setup**](#ai-assistant-mcp-setup) for one-command installation, MCP tool schemas, and agent skill integration.
 
 ---
 
-### 🌐 Quick Links
-- **📱 Live Web Remote**: [projects.shivalgupta.me/tv-remote-mcp/remote/](https://projects.shivalgupta.me/tv-remote-mcp/remote/)
-- **🏠 Project Homepage**: [projects.shivalgupta.me/tv-remote-mcp/](https://projects.shivalgupta.me/tv-remote-mcp/) *(GitHub Pages Mirror: [Shival-Gupta.github.io/tv-remote-mcp](https://Shival-Gupta.github.io/tv-remote-mcp))*
-- **📖 Documentation**: [Complete Guides & Reference](docs/)
+## ⚡ Quick Start
 
----
+### 1. Open the Remote
+Open **[projects.shivalgupta.me/tv-remote-mcp/remote/](https://projects.shivalgupta.me/tv-remote-mcp/remote/)** on your phone (make sure you are connected to the same Wi-Fi network as your TV).
 
-## 🤖 For AI Assistants & Chatbot Crawlers
+- **For Roku TVs**: Works immediately from the browser without running any software on your computer.
+- **For LG, Samsung, Android TV, Sony, or Vizio**: Start the lightweight companion relay on your computer:
 
-> [!IMPORTANT]
-> **If you are an AI coding assistant (Claude Code, Hermes, Antigravity, Cursor, Codex) instructed to:**  
-> `"""Install this https://github.com/Shival-Gupta/tv-remote-mcp"""`
->
-> **Execute this single turnkey command in your terminal:**
-> ```bash
-> python install.py
-> ```
-> *(On Linux/macOS, you can also execute `./install.sh`)*
-
-### What `python install.py` executes automatically:
-1. **Installs Dependencies**: Resolves and installs packages from [`requirements.txt`](requirements.txt) (`pywebostv`, `requests`, `websockets`, `fastmcp`).
-2. **Registers MCP Server**: Automatically detects and configures the `smart-tv` MCP server in:
-   - **Claude Desktop**: `%APPDATA%\Claude\claude_desktop_config.json` (Windows) / `~/Library/Application Support/Claude/` (macOS) / `~/.config/Claude/` (Linux).
-   - **Cursor**: Workspace configuration at `.cursor/mcp.json`.
-3. **Installs Agent Skills**: Copies and registers the [`smart-tv-control`](skills/smart-tv-control/SKILL.md) skill into:
-   - Project `.agents/skills/smart-tv-control/` (for Antigravity & Hermes)
-   - Project `.claude/skills/smart-tv-control/` (for Claude Code)
-   - Machine-global agent skill stores (`~/.gemini/config/skills/` and `~/.claude/skills/`)
-4. **Validates the Installation**: Runs [`tests/test_mcp_server.py`](tests/test_mcp_server.py) verifying all 7 unit and RPC tests pass.
-5. **Performs LAN Discovery**: Scans local Wi-Fi subnets for active smart TVs and reports their IP addresses and brands.
-
-### Agent Quick Reference
-| Resource | Path | Description |
-|---|---|---|
-| **Agent Skill** | [`skills/smart-tv-control/SKILL.md`](skills/smart-tv-control/SKILL.md) | Standard instructions, action signatures, and app IDs |
-| **Claude Guidelines** | [`CLAUDE.md`](CLAUDE.md) | Instructions read by Claude Code & Hermes upon entering repo |
-| **Developer Rules** | [`AGENTS.md`](AGENTS.md) | Architecture rules, port table, and hardware validation steps |
-| **CLI Runner** | [`skills/smart-tv-control/scripts/tv_cli.py`](skills/smart-tv-control/scripts/tv_cli.py) | Standalone command runner (no server daemon required) |
-
-#### Available MCP Tools
-- `universal_action(host, brand, action, arg)`: Controls volume, power, D-pad, media, apps, and HDMI inputs.
-- `discover(network)`: Scans subnet for active smart TVs.
-- `list_brands()`: Returns all supported brand identifiers.
-
-#### Direct CLI Execution (Zero Daemon Required)
 ```bash
-# Discover TVs
-python skills/smart-tv-control/scripts/tv_cli.py discover
+# Clone the repository
+git clone https://github.com/Shival-Gupta/tv-remote-mcp.git
+cd tv-remote-mcp
 
-# Wake up TV via Wake-on-LAN
-python skills/smart-tv-control/scripts/tv_cli.py power_on 192.168.1.11
+# Run the automated installer (installs dependencies & verifies setup)
+python install.py
 
-# Adjust volume or launch streaming apps
-python skills/smart-tv-control/scripts/tv_cli.py action 192.168.1.11 lg volume_up
-python skills/smart-tv-control/scripts/tv_cli.py launch 192.168.1.11 lg youtube.leanback.v4
+# Start the local relay
+python server/relay.py
 ```
 
----
+### 2. Connect to Your TV
+Tap **Settings (⚙)** in the remote header, select your TV brand, and enter your TV's local IP address (e.g. `192.168.1.11`).
 
-## 👤 For Humans: Quick Start Guide
-
-TV Remote MCP can be used either as an **instant web remote on your phone** or as a **voice/text AI remote**.
-
-### Option 1: Phone Web Remote (Zero Install for Roku)
-1. Open **[projects.shivalgupta.me/tv-remote-mcp/remote/](https://projects.shivalgupta.me/tv-remote-mcp/remote/)** on your phone (connected to home Wi-Fi).
-2. For **Roku TVs**, simply type your TV's IP address — Roku works directly from the browser!
-3. For **LG, Samsung, Android TV, Sony, or Vizio**, start the lightweight local relay on your PC:
-   ```bash
-   git clone https://github.com/Shival-Gupta/tv-remote-mcp.git
-   cd tv-remote-mcp
-   python install.py
-   python server/relay.py
-   ```
-4. On your phone, the web remote will automatically connect to your PC's relay server, or you can open `http://<YOUR_PC_IP>:7070/remote/`.
-
-### Option 2: AI Assistant Control (Claude Desktop, Cursor, Gemini)
-1. Run the installer:
-   ```bash
-   python install.py
-   ```
-2. Restart **Claude Desktop** or reload **Cursor**.
-3. Talk to your AI assistant naturally:
-   - *"Turn down the TV volume by 5 steps."*
-   - *"Launch YouTube on the living room TV."*
-   - *"Switch input to HDMI 2 for the console."*
-   - *"Turn off the TV when you finish this coding task."*
+If you're using the remote from your phone, enter your computer's local IP address as the relay server (e.g. `http://192.168.1.12:7070`). You can also open `http://<YOUR_PC_IP>:7070/remote/` directly in your phone's browser.
 
 ---
 
-## 📺 Supported Brands & Technical Specifications
+## 📺 Supported Brands & Technical Specs
 
 | Brand | Protocol | Default Port(s) | Auth / Pairing Method | Power On (Wake-on-LAN) |
 |---|---|---|---|:---:|
 | **LG WebOS (3.0+)** | WebSocket (`wss://` / `ws://`) | `3001` (SSL) / `3000` | Click "Yes" on TV screen | ✅ UDP Magic Packet |
 | **Samsung Tizen (2016+)** | HTTP REST + WebSocket | `8001` / `8002` | Accept on-screen popup | ✅ UDP Magic Packet |
-| **Roku TV** | HTTP ECP | `8060` | Zero pairing required | ✅ ECP / Magic Packet |
+| **Roku TV** | HTTP ECP | `8060` | None (open REST) | ✅ ECP / Magic Packet |
 | **Android TV / Google TV** | ADB | `5555` | Allow Network Debugging prompt | ✅ ADB Keyevent / WoL |
 | **Fire TV** | ADB | `5555` | Allow Network Debugging prompt | ✅ ADB Keyevent / WoL |
-| **Sony Bravia** | HTTP REST / IRCC-over-HTTP | `80` | Pre-Shared Key (PSK) or PIN | ✅ HTTP / Magic Packet |
+| **Sony Bravia** | HTTP REST / IRCC | `80` | Pre-Shared Key (PSK) or PIN | ✅ HTTP / Magic Packet |
 | **Vizio SmartCast** | HTTPS REST | `7345` / `9000` | On-screen 4-digit PIN | ✅ HTTPS / Magic Packet |
 | **Philips (JointSpace)** | HTTP REST | `1925` / `1926` | Digest Auth / PIN | ✅ HTTP / Magic Packet |
 | **Panasonic Viera** | HTTP SOAP | `55000` | None / PIN | ✅ HTTP / Magic Packet |
-| **TCL / Hisense** | ADB or Roku ECP | `5555` / `8060` | Dependent on OS | ✅ Supported |
+| **TCL / Hisense** | ADB or Roku ECP | `5555` / `8060` | Dependent on TV OS | ✅ Supported |
 
 ---
 
-## ⚡ How It Works
+## 🛠️ How It Works
 
 ```text
 ┌─────────────────────────┐       HTTP POST        ┌─────────────────────────┐
@@ -134,61 +79,117 @@ TV Remote MCP can be used either as an **instant web remote on your phone** or a
 └─────────────────────────┘                        └─────────────────────────┘
 ```
 
-1. **The Browser Challenge**: Modern web browsers enforce strict security boundaries (CORS and Mixed Content) that prevent web pages on `https://` from sending raw TCP or unencrypted HTTP requests to private local IP addresses.
-2. **The Local Companion Relay (`server/relay.py`)**: Runs on port `7070`. Bridges the browser to the TV's native protocols (WebSocket with SSL bypass for LG, HTTP REST for Roku, ADB for Android TV).
-3. **The MCP Server (`server/mcp-server.py`)**: Runs on port `8000`. Exposes FastMCP tools and an HTTP JSON-RPC bridge (`/rpc`), giving AI assistants native TV control capabilities.
-4. **Smart Power & Wake-on-LAN**: When TVs are powered off into standby mode, their main operating systems close network sockets. TV Remote MCP transmits a 5-packet UDP magic packet burst (broadcast + subnet broadcast + unicast) to wake the TV hardware.
+1. **Why the local relay exists**: Web browsers running an HTTPS page cannot open direct TCP sockets or unencrypted HTTP connections to local network IPs due to CORS and mixed-content security rules. The lightweight Python relay (`server/relay.py`) runs on your PC and acts as a transparent local bridge.
+2. **Smart Power via Wake-on-LAN**: When smart TVs are powered off, their operating systems enter low-power standby and shut down their network listening ports. TV Remote MCP uses a 5-packet UDP magic packet burst (broadcast + subnet broadcast + unicast) to wake the TV hardware over Wi-Fi/Ethernet.
+3. **Phone-first UI**: Built with vanilla HTML5, CSS (Tailwind CDN), and JavaScript (<200KB total, no npm build step). It includes haptic feedback, D-pad angle mathematics, hold-to-repeat volume buttons, and offline caching via Service Worker.
 
 ---
 
-## 🎮 Supported Actions & App IDs
+<a id="ai-assistant-mcp-setup"></a>
+## 🤖 AI Assistant & MCP Setup
 
-### Remote Control Actions
+TV Remote MCP provides a dedicated FastMCP server and Agent Skill so coding assistants and AI agents can interact with your TV using natural language:
+
+> *"Turn down the volume by 5 steps and open YouTube on the TV."*  
+> *"Switch the TV input to HDMI 2 for the console."*  
+> *"Turn off the living room TV when this test suite finishes."*
+
+### One-Command Automated Setup
+From your terminal (or when asking an AI assistant to set up this repository), run:
+
+```bash
+python install.py
+```
+*(On Linux/macOS, `./install.sh` also works).*
+
+#### What `install.py` does:
+- Installs dependencies from [`requirements.txt`](requirements.txt) (`pywebostv`, `requests`, `websockets`, `fastmcp`).
+- Auto-detects and writes MCP configuration for:
+  - **Claude Desktop**: `%APPDATA%\Claude\claude_desktop_config.json` (Windows) / `~/Library/Application Support/Claude/` (macOS) / `~/.config/Claude/` (Linux).
+  - **Cursor**: Workspace configuration in `.cursor/mcp.json`.
+- Registers the [`smart-tv-control`](skills/smart-tv-control/SKILL.md) skill into `.agents/skills/`, `.claude/skills/`, and machine-global agent directories (`~/.gemini/config/skills/`, `~/.claude/skills/`).
+- Runs [`tests/test_mcp_server.py`](tests/test_mcp_server.py) to confirm all 7 test cases pass.
+- Scans your local network subnet and reports discovered smart TVs.
+
+### MCP Tools Reference
+
+| Tool Name | Arguments | Description |
+|---|---|---|
+| `universal_action` | `host`, `brand`, `action`, `arg` | Executes a TV command (see Action list below) |
+| `discover` | `network` *(optional)* | Scans the local network subnet for active smart TVs |
+| `list_brands` | *(none)* | Returns the list of supported smart TV brand IDs |
+
+### Supported Actions
 - **Power**: `power_on` (Wake-on-LAN), `power_off`
 - **Volume**: `volume_up`, `volume_down`, `mute`, `volume_set` (arg: `0`–`100`)
-- **Navigation (D-pad)**: `up`, `down`, `left`, `right`, `enter`, `back`, `home`
-- **Media Controls**: `media_play`, `media_pause`, `media_stop`
+- **Navigation**: `up`, `down`, `left`, `right`, `enter`, `back`, `home`
+- **Media**: `media_play`, `media_pause`, `media_stop`
 - **Apps**: `launch_app` (arg: app ID), `list_apps`
-- **Video Inputs**: `set_input` (arg: `HDMI_1`, `HDMI_2`, `Live TV`)
+- **Inputs**: `set_input` (arg: `HDMI_1`, `HDMI_2`, etc.)
 
-### Popular App Identifiers
-| Streaming Service | LG WebOS ID | Roku App ID | Android TV / Fire TV Package |
+### Direct CLI Control (No Server Daemon Required)
+You can also send commands directly from your terminal or shell scripts:
+
+```bash
+# Discover TVs on your local Wi-Fi
+python skills/smart-tv-control/scripts/tv_cli.py discover
+
+# Wake up TV via Wake-on-LAN
+python skills/smart-tv-control/scripts/tv_cli.py power_on 192.168.1.11
+
+# Adjust volume or launch apps
+python skills/smart-tv-control/scripts/tv_cli.py action 192.168.1.11 lg volume_up
+python skills/smart-tv-control/scripts/tv_cli.py launch 192.168.1.11 lg youtube.leanback.v4
+```
+
+### Agent Instruction Files
+- **For Claude Code & Hermes**: Read [`CLAUDE.md`](CLAUDE.md)
+- **For Antigravity & Pair Programming**: Read [`AGENTS.md`](AGENTS.md)
+- **Complete Skill Playbook**: Read [`skills/smart-tv-control/SKILL.md`](skills/smart-tv-control/SKILL.md)
+
+---
+
+## 🎮 Streaming App Identifiers
+
+When launching apps via MCP or CLI, use these platform identifiers:
+
+| Service | LG WebOS ID | Roku App ID | Android TV / Fire TV Package |
 |---|---|---|---|
 | **YouTube** | `youtube.leanback.v4` | `837` | `com.google.android.youtube.tv` |
 | **Netflix** | `netflix` | `12` | `com.netflix.ninja` |
-| **Amazon Prime Video** | `amazon` | `13` | `com.amazon.amazonvideo.livingroom` |
+| **Prime Video** | `amazon` | `13` | `com.amazon.amazonvideo.livingroom` |
 | **Disney+** | `com.disney.disneyplus-prod` | `291097` | `com.disney.disneyplus` |
 | **Spotify** | `spotify-beehive` | `22271` | `com.spotify.tv.android` |
 | **Apple TV+** | `com.apple.appletv` | `551012` | `com.apple.atve.androidtv.appletv` |
 
-*(See [`skills/smart-tv-control/references/app-ids.md`](skills/smart-tv-control/references/app-ids.md) for complete list).*
+*(See [`skills/smart-tv-control/references/app-ids.md`](skills/smart-tv-control/references/app-ids.md) for complete lookup table).*
 
 ---
 
-## 📂 Project Structure
+## 📁 Project Structure
 
 ```text
 tv-remote-mcp/
-├── install.py              # Automated installer (dependencies + MCP config + skills + verification)
+├── install.py              # Automated installer (dependencies + MCP config + skills + tests)
 ├── install.sh              # Unix/macOS shell installer wrapper
-├── requirements.txt        # Pinned Python package dependencies
+├── requirements.txt        # Python package dependencies
 ├── CLAUDE.md               # Claude Code & Hermes agent instructions
-├── AGENTS.md               # Antigravity & AI developer rules
+├── AGENTS.md               # Antigravity developer rules & brand reference
 ├── index.html              # Landing page (GitHub Pages root)
 ├── manifest.json           # Progressive Web App manifest
-├── sw.js                   # Service Worker (offline shell cache)
+├── sw.js                   # Service Worker (offline cache)
 ├── remote/
-│   └── index.html          # Phone-first Web Remote Control application
+│   └── index.html          # Universal Smart TV Web Remote application
 ├── server/
 │   ├── relay.py            # Local relay server (browser → TV bridge, port 7070)
 │   └── mcp-server.py       # FastMCP server & HTTP RPC bridge (port 8000)
 ├── skills/
 │   └── smart-tv-control/   # AI Agent Skill package
-│       ├── SKILL.md        # AI procedure playbook with YAML frontmatter
+│       ├── SKILL.md        # Procedural playbook with YAML frontmatter
 │       ├── scripts/
 │       │   └── tv_cli.py   # Standalone CLI helper (discover, action, power_on, launch)
 │       └── references/
-│           ├── brand-protocols.md  # Port, transport, and authentication guide
+│           ├── brand-protocols.md  # Port, transport, and auth guide
 │           └── app-ids.md          # Complete app IDs & HDMI input mappings
 ├── tests/
 │   ├── test_mcp_server.py  # 7-step automated MCP server test suite
@@ -199,17 +200,16 @@ tv-remote-mcp/
 
 ---
 
+<a id="privacy-security"></a>
 ## 🔒 Privacy & Security
 
-- **100% Local Network**: Commands travel strictly over your local Wi-Fi. No analytics, no telemetry, and no external cloud servers.
-- **Local Token Storage**: Pairing tokens and TV MAC addresses are saved in `tv-tokens/tokens.json` locally on your machine.
-- **Git Protection**: `tv-tokens/`, `*.token`, `*.key`, and `.env` are strictly gitignored to guarantee zero credential leaks.
+- **100% Local**: All commands travel exclusively over your home Wi-Fi network. No cloud accounts, no third-party telemetry, and no external tracking.
+- **Local Token Storage**: Pairing tokens and TV MAC addresses are stored in `tv-tokens/tokens.json` locally on your machine.
+- **Git Protection**: `tv-tokens/`, `*.token`, `*.key`, and `.env` are strictly gitignored to prevent accidental credential commits.
 
 ---
 
 ## 🧪 Testing & Validation
-
-TV Remote MCP comes with built-in test suites:
 
 ```bash
 # Automated MCP Server Test Suite (7/7 tests PASS)
@@ -225,13 +225,13 @@ python tests/test_lg_tv.py
 
 <details>
 <summary><b>1. How do I find my Smart TV's IP address?</b></summary>
-On your TV remote, go to <b>Settings &rarr; Network &rarr; Connection Status / IP Settings</b>. Look for an address starting with <code>192.168.1.X</code> or <code>10.0.0.X</code>. Alternatively, run:
+On your TV remote, navigate to <b>Settings &rarr; Network &rarr; Connection Status / IP Settings</b>. Look for an address starting with <code>192.168.1.X</code> or <code>10.0.0.X</code>. Alternatively, run:
 <pre><code>python skills/smart-tv-control/scripts/tv_cli.py discover</code></pre>
 </details>
 
 <details>
 <summary><b>2. Why won't my TV turn on via the power button?</b></summary>
-When smart TVs power down into standby mode, their network cards disconnect from Wi-Fi unless <b>Mobile TV On / Wake on Wi-Fi</b> (or <b>Quick Start+</b> on LG WebOS) is enabled in your TV's settings. Once enabled, the remote's smart power button automatically uses Wake-on-LAN to turn the TV on.
+When smart TVs power down into standby mode, their network cards disconnect from Wi-Fi unless <b>Mobile TV On / Wake on Wi-Fi</b> (or <b>Quick Start+</b> on LG WebOS) is enabled in your TV's settings. Once enabled, the remote's smart power button automatically uses Wake-on-LAN to wake the TV.
 </details>
 
 <details>
@@ -253,7 +253,7 @@ When you send your first command or connect via the remote, a prompt will appear
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for code rules (vanilla HTML/CSS/JS, phone-first 375px design, and atomic commits).
+Contributions are welcome! Please review [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code standards, phone-first responsive design, and atomic commits.
 
 ## 📄 License
 
