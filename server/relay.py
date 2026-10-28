@@ -69,7 +69,8 @@ DEFAULT_TIMEOUT: float = 3.0
 SERVER_VERSION: str = "1.0.0"
 
 # TV Pairing tokens persistence (gitignored in tv-tokens/)
-TOKENS_DIR: Path = Path(__file__).resolve().parent.parent / "tv-tokens"
+REPO_ROOT: Path = Path(__file__).resolve().parent.parent
+TOKENS_DIR: Path = REPO_ROOT / "tv-tokens"
 TOKENS_FILE: Path = TOKENS_DIR / "tokens.json"
 
 CACHE_LOCK: threading.Lock = threading.Lock()
@@ -666,6 +667,9 @@ class RelayHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", ctype)
         self.end_headers()
 
+    def do_HEAD(self) -> None:
+        self.do_GET()
+
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -683,6 +687,48 @@ class RelayHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_cors_headers(200)
             self.wfile.write(json.dumps({"devices": discover_devices()}).encode("utf-8"))
             return
+
+        # Serve static web assets directly from repository root
+        clean_path = path.lstrip("/")
+        if not clean_path:
+            file_path = REPO_ROOT / "index.html"
+        elif clean_path in ("remote", "remote/"):
+            file_path = REPO_ROOT / "remote" / "index.html"
+        elif clean_path in ("docs", "docs/"):
+            file_path = REPO_ROOT / "docs" / "index.html"
+        else:
+            file_path = (REPO_ROOT / clean_path).resolve()
+            if not str(file_path).startswith(str(REPO_ROOT)):
+                self.send_cors_headers(403)
+                self.wfile.write(b"Forbidden")
+                return
+            if file_path.is_dir():
+                file_path = file_path / "index.html"
+
+        if file_path.is_file():
+            ext = file_path.suffix.lower()
+            content_types = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "application/javascript; charset=utf-8",
+                ".css": "text/css; charset=utf-8",
+                ".json": "application/json; charset=utf-8",
+                ".svg": "image/svg+xml",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".md": "text/markdown; charset=utf-8",
+            }
+            ctype = content_types.get(ext, "application/octet-stream")
+            try:
+                with open(file_path, "rb") as f:
+                    content = f.read()
+                self.send_cors_headers(200, ctype)
+                self.wfile.write(content)
+                return
+            except Exception as exc:
+                self.send_cors_headers(500)
+                self.wfile.write(str(exc).encode("utf-8"))
+                return
+
         self.send_cors_headers(404)
         self.wfile.write(json.dumps({"error": f"Path '{path}' not found"}).encode("utf-8"))
 
@@ -736,11 +782,13 @@ def print_banner(host: str, port: int, local_ip: str) -> None:
 ==================================================================
   📺 TV Remote MCP — Local Relay Server v{SERVER_VERSION}
 ==================================================================
-  Local URL:    http://localhost:{port}
-  Network URL:  http://{local_ip}:{port}
+  Web Remote:   http://localhost:{port}/remote/
+  Phone Remote: http://{local_ip}:{port}/remote/
+  API Health:   http://localhost:{port}/api/health
   Listening:    {host}:{port}
 
   API Endpoints:
+    GET  /remote/         → Browser Remote UI (Zero Mixed-Content)
     GET  /api/health      → Server health status
     GET  /api/discover    → Smart TV local discovery
     POST /api/command     → Send command (power, volume, d-pad, apps)
