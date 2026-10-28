@@ -362,7 +362,7 @@
       <div class="flex flex-col gap-1.5">
         <label for="input-tv-ip" class="text-xs font-semibold uppercase tracking-wider text-neutral-400">TV IP Address</label>
         <div class="relative">
-          <input id="input-tv-ip" type="text" placeholder="192.168.1.11" class="w-full h-11 px-3.5 rounded-xl bg-[#0a0a0a] border border-border-custom text-white font-mono text-sm placeholder:text-neutral-600 focus:outline-none focus:border-accent">
+          <input id="input-tv-ip" type="text" placeholder="e.g. 192.168.1.50" class="w-full h-11 px-3.5 rounded-xl bg-[#0a0a0a] border border-border-custom text-white font-mono text-sm placeholder:text-neutral-600 focus:outline-none focus:border-accent">
           <button type="button" onclick="scanNetworkDevices()" id="btn-scan-lan" class="absolute right-1.5 top-1.5 h-8 px-2.5 rounded-lg bg-bg-button text-[11px] font-medium text-accent hover:bg-neutral-800 transition flex items-center gap-1">
             <i data-lucide="scan" class="w-3.5 h-3.5"></i>
             <span>Scan</span>
@@ -556,7 +556,7 @@
           <input id="settings-relay-url" type="text" value="http://localhost:7070" class="flex-1 h-10 px-3 rounded-xl bg-[#0a0a0a] border border-border-custom text-white font-mono text-xs focus:outline-none focus:border-accent">
           <button onclick="testRelayConnection()" class="px-3 rounded-xl bg-bg-button text-xs font-medium text-accent hover:bg-neutral-800">Test</button>
         </div>
-        <p class="text-[11px] text-neutral-500">If accessing from phone, use your PC's LAN IP: <code class="text-neutral-400">http://192.168.1.XX:7070</code></p>
+        <p class="text-[11px] text-neutral-500">If accessing from phone, use your PC's LAN IP: <code class="text-neutral-400">http://&lt;PC-LAN-IP&gt;:7070</code></p>
       </div>
 
       <!-- TV IP & Brand Shortcut -->
@@ -791,22 +791,6 @@
         }
       } catch (err) {
         // Relay unavailable on primary URL
-      }
-
-      // Fallback check to LAN IP if localhost failed (useful when testing from phone or LAN)
-      if (appConfig.relayUrl === 'http://localhost:7070') {
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 1500);
-          const res = await fetch('http://192.168.1.12:7070/api/health', { signal: controller.signal });
-          clearTimeout(tid);
-          if (res.ok) {
-            appConfig.relayUrl = 'http://192.168.1.12:7070';
-            persistConfig();
-            setRelayOnline(true);
-            return true;
-          }
-        } catch (_) {}
       }
 
       setRelayOnline(false);
