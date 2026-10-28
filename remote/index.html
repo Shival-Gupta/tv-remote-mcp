@@ -607,6 +607,14 @@
   <!-- Application Logic & Hardware Driver Integration -->
   <!-- ======================================================== -->
   <script>
+    // Seamless LAN communication: Automatically switch to HTTP if loaded over HTTPS on public web domain
+    // to prevent browser Mixed Content security from blocking localhost / LAN communication
+    if (location.protocol === 'https:' && location.hostname.includes('shivalgupta.me')) {
+      try {
+        location.replace('http://' + location.host + location.pathname + location.search);
+      } catch (_) {}
+    }
+
     // --- State Storage & Configuration ---
     const STORAGE_KEY = 'tv_remote_mcp_config';
     let appConfig = {
@@ -718,6 +726,26 @@
         }
       } catch (err) {
         // Relay unavailable
+      }
+
+      // Fallback check to LAN IP if localhost failed (useful when testing from phone or LAN)
+      if (appConfig.relayUrl === 'http://localhost:7070') {
+        try {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 1500);
+          const res = await fetch('http://192.168.1.12:7070/api/health', { signal: controller.signal });
+          clearTimeout(tid);
+          if (res.ok) {
+            appConfig.relayUrl = 'http://192.168.1.12:7070';
+            persistConfig();
+            isRelayAlive = true;
+            if (relayDot) relayDot.className = 'w-1.5 h-1.5 rounded-full bg-success';
+            if (relayLabel) relayLabel.textContent = 'Relay OK';
+            if (setupDot) setupDot.className = 'w-2.5 h-2.5 rounded-full bg-success mt-1 shrink-0';
+            if (setupText) setupText.innerHTML = '<span class="text-success font-semibold">Relay connected</span> on ' + appConfig.relayUrl;
+            return true;
+          }
+        } catch (_) {}
       }
 
       isRelayAlive = false;
