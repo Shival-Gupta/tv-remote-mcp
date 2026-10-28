@@ -676,6 +676,11 @@
       checkRelayHealth();
       updatePowerButtonUI(appConfig.isTvOn);
 
+      // Register Progressive Web App Service Worker
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
+      }
+
       // Periodic check & re-check when returning to the tab
       window.addEventListener('focus', checkRelayHealth);
       setInterval(checkRelayHealth, 8000);
